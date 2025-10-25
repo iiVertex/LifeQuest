@@ -1,0 +1,182 @@
+⚙️ PROJECT: AI Lifestyle Companion App (working title)
+
+Goal:
+A futuristic, minimal AI-powered lifestyle gamification app that feels intelligent, human, and motivational — not childish. Clean UI, high-contrast typography, subtle motion, and a calm yet premium aesthetic.
+
+🧠 DESIGN PHILOSOPHY
+
+Tone: Calm, premium, trustworthy, and motivating.
+Design DNA: Imagine if Notion + Duolingo + Apple Health + ChatGPT had a child — a minimal interface that feels “alive.”
+Core Emotions: Clarity, motivation, intelligence, progress.
+Design Rule: No clutter. Every pixel must communicate intent or state.
+
+🎨 VISUAL SYSTEM
+1. Color Palette
+
+Primary: Neutral whites + warm grays (#F7F8FA, #EAEAEA, #121212)
+
+Accent colors: Based on user focus area
+
+Driving: Blue (#3A7BD5)
+
+Health: Green (#4CAF50)
+
+Financial: Gold (#FFB300)
+
+Feedback colors:
+
+Success: Emerald Green (#2ECC71)
+
+Warning: Amber (#F39C12)
+
+Error: Red (#E74C3C)
+
+Info: Cyan (#00BCD4)
+
+Use gradients only for subtle depth — no garish visuals.
+
+2. Typography
+
+Primary Font: Inter / SF Pro / Manrope — geometric, clean, readable.
+
+Font weights:
+
+Headings: 600–700
+
+Body: 400
+
+Labels/Buttons: 500
+
+Hierarchy: Generous white space, short copy, big readable headings.
+
+3. Iconography & Components
+
+Line icons (Lucide / Feather style).
+
+Rounded corners (radius: 16–24px).
+
+Shadows: soft, low elevation (rgba(0,0,0,0.08)).
+
+Use micro-interactions (Framer Motion style) for smooth state changes.
+
+📱 CORE UX STRUCTURE
+1. Onboarding / Account Setup
+
+Goal: Get user into flow in <90 seconds.
+
+Minimal form screens (one question per page).
+
+AI avatar appears as a conversational guide (chat-like onboarding).
+
+Focus area picker → visual icons for “Driving,” “Health,” “Finance.”
+
+Optional integrations screen (notifications, family linking).
+
+Visual style: Clean white background, floating input fields, calm gradient CTA.
+Microcopy: “Let’s tailor your journey” / “Choose what you want to master.”
+
+2. Home / Dashboard
+
+Goal: A “command center” that adapts to user progress.
+
+Top section: Profile summary (XP bar, Level, streak days).
+
+Mid-section: Active missions (cards with progress rings).
+
+Bottom: AI Feed (“Next best action,” motivational quote, or data insight).
+
+Floating button: “+ New Mission” (calls AI assistant).
+
+Visual feel: Modular cards, soft shadows, monochrome base with color-coded missions.
+
+3. Missions & Skill Trees
+
+Goal: Show growth visually and drive engagement.
+
+Branching tree structure with completed and locked nodes.
+
+Each node: small circular badge with XP earned, AI-recommended next node glows subtly.
+
+Mission card: title, duration, reward icons, short description.
+
+Micro-interactions: Expanding mission card animates with smooth curve; reward earned triggers particle-like confetti or shimmer.
+
+4. Social / Collaborative Quests
+
+Goal: Subtle gamified social layer.
+
+“Team dashboard” showing progress rings for each friend.
+
+Nudges: “Invite friend to complete challenge,” “Compare XP.”
+
+Clean horizontal carousel for shared missions.
+
+No cluttered chat — just short, actionable prompts.
+
+Style: White space heavy, avatars as circular chips, minimal notification dots.
+
+5. Scenario Simulator
+
+Goal: Predict lifestyle impact through AI-driven “what-if” models.
+
+Input sliders for variables (e.g., “Drive 30% less”, “Sleep +1h/night”).
+
+Visual output: animated card showing projected XP or lifestyle score.
+
+Subtle use of gradient to visualize improvement curve.
+
+6. Rewards & XP
+
+Goal: Celebrate wins without cheap gamification.
+
+Rewards dashboard: coins, streaks, badges — grouped visually.
+
+XP visualization: radial bar with subtle glow.
+
+Partner offers: small cards, muted backgrounds.
+
+7. Notifications & Nudges
+
+Goal: Smart, adaptive push system.
+
+Context-aware to avoid spam.
+
+UX: toggle in settings → “Frequency” and “Tone” (strict, balanced, celebratory).
+
+Notification previews use emoji or micro-icons, never long text.
+
+8. Profile & Settings
+
+Goal: Transparency and personalization.
+
+Clean tabs: Profile / Preferences / Privacy / Linked Apps.
+
+Avatar customization (light/dark theme, AI assistant voice tone).
+
+Data insights: show how actions contributed to overall “lifestyle score.”
+
+9. Motion & Feel
+
+Use Framer Motion principles: smooth in-out easing, no bouncy clutter.
+
+Example animations:
+
+Level-up → soft pulse + shimmer
+
+Tab transitions → horizontal slide
+
+AI assistant popup → scale from bottom center
+
+10. Overall Inspiration References
+
+Use the visual balance and spacing style of:
+
+Orgo App (for structure & flow clarity)
+
+Adaptly (for onboarding conversational UX)
+
+Disney AI Assistant (for character & tone)
+
+💎 Design Deliverable Goal
+
+The final UI should feel intelligent, human, and empowering — something you’d expect from a next-gen personal AI mentor, not a startup app with gamification slapped on top.

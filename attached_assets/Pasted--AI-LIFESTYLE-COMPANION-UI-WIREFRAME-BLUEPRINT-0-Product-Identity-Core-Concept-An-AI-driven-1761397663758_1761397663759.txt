@@ -1,0 +1,269 @@
+⚔️ AI LIFESTYLE COMPANION — UI + WIREFRAME BLUEPRINT
+0. Product Identity
+
+Core Concept:
+An AI-driven lifestyle gamification app that converts real-world habits (health, finance, driving, etc.) into “XP, missions, and adaptive insights.”
+
+Tone: Calm, premium, futuristic — not childish, not corporate.
+UI DNA: Clean white space, modular cards, minimalist typography, AI-driven motion.
+
+1. 🎯 ONBOARDING FLOW
+Screens:
+
+Welcome
+
+Logo fade-in → tagline: “Master your life, one mission at a time.”
+
+CTA: “Begin Setup” → leads to quiz
+
+Minimal background, soft gradient or AI particle effect
+
+AI Setup Quiz (multi-step)
+
+One question per screen (cards/sliders)
+
+Data: Name, DOB, gender (optional), focus areas (Driving / Health / Finance)
+
+Visual: Each focus area = icon + micro-animation
+
+Progress bar top center
+
+Avatar & Preferences
+
+Pick avatar or continue without
+
+Theme: Light / Dark toggle
+
+Notification consent toggle
+
+Integrations (Optional)
+
+“Link Fitness”, “Link Finance”, “Invite Family”
+
+Skip button always visible (minimal friction)
+
+Summary Screen
+
+“You’re all set.”
+
+Subtext: “Your AI mentor will adapt to your lifestyle.”
+
+CTA: “Enter Dashboard”
+
+Design Notes:
+
+Inspired by Adaptly’s conversational onboarding — one visual card, minimal text.
+
+Color-coded progress and AI “glow” animation when setup completes.
+
+2. 🏠 DASHBOARD (HOME)
+Top Section
+
+Profile circle (avatar + XP level)
+
+Quick stats: XP, Streak Days, Lifestyle Level
+
+Mini progress bar under username
+
+Mid Section
+
+“Active Missions” — scrollable horizontal cards
+
+Card example:
+
+Icon + title (“Drive Safely Challenge”)
+
+Progress ring (75%)
+
+Time left
+
+Tap → open full mission details
+
+Bottom Section
+
+AI Feed card: “Next Best Action” (adaptive, based on performance)
+
+Quick buttons:
+
+“+ New Mission”
+
+“Scenario Simulator”
+
+“Rewards”
+
+Visual Layout
+
+3 main zones stacked vertically
+
+Soft blurred background gradient (based on theme color)
+
+Floating bottom nav with icons:
+
+Home | Missions | Simulator | Social | Profile
+
+3. 🎯 MISSIONS & SKILL TREES
+Screen Structure
+
+Top: Tabs for each category (Driving / Health / Finance)
+
+Middle: Skill tree visualization
+
+Each node = circular badge with XP number
+
+Completed nodes = filled gradient ring
+
+Locked nodes = gray + subtle lock icon
+
+AI-recommended node pulses softly
+
+Mission Details Drawer (modal)
+
+Title + category tag
+
+XP reward and estimated duration
+
+Steps list or instruction block
+
+CTA: “Start Mission”
+
+Optional “Simulate Outcome” button
+
+Completed Mission State
+
+Reward animation → shimmer particle + badge slide-up
+
+Confetti pulse (controlled, not noisy)
+
+4. 👥 SOCIAL / COLLABORATIVE QUESTS
+Team Overview
+
+Header: “My Circle”
+
+Friend avatars in a row, each with XP ring
+
+Collaborative mission cards: “Stay Active Together”, “Carpool Week”, etc.
+
+Each card shows progress % for each member
+
+Interactions
+
+Tap → mission feed showing who did what
+
+“Nudge” button (sends friendly reminder)
+
+“Share Achievement” (optional badge share to others)
+
+Design
+
+Minimal chat bubble UI for comments
+
+Muted notifications → simple colored dots
+
+Clean gradient background
+
+5. 🔮 SCENARIO SIMULATION
+Input Screen
+
+Title: “What if you changed this?”
+
+Sliders for:
+
+Driving habits
+
+Sleep hours
+
+Spending behavior
+
+Each slider updates small “XP projection” in real-time
+
+Output Screen
+
+AI Visualization: Animated chart or lifestyle score bar
+
+Text summary: “Your XP would increase by +12%, and risk index drops 8%.”
+
+CTA: “Convert to Mission”
+
+Design:
+
+Use adaptive glow/gradient to show positive change (green shift)
+
+Minimal UI — Apple Health–like simplicity
+
+6. 🏆 REWARDS & XP
+Rewards Dashboard
+
+Tabs: Coins | Badges | Partner Deals
+
+XP visualization: circular gradient bar
+
+Achievements: grid of badge cards
+
+Partner Offers
+
+Horizontal carousel
+
+Each card = brand logo + short reward text
+
+7. 🔔 NOTIFICATIONS / NUDGES
+Nudge Types
+
+Motivational (“Keep your streak going”)
+
+Smart (“It’s been 3 days since your last Health mission”)
+
+Celebration (“You’ve hit Level 5 — great work”)
+
+Settings
+
+Toggles for: frequency, tone (strict / balanced / soft)
+
+“Preview Notification” sample shown in real-time
+
+8. ⚙️ PROFILE & SETTINGS
+Sections
+
+Profile summary (XP, focus areas)
+
+Customization (avatar, theme, voice tone)
+
+Linked Apps & Privacy
+
+Data Insights → shows contribution to overall “lifestyle score”
+
+🧩 GLOBAL DESIGN SYSTEM SUMMARY
+Element	Style
+Buttons	Rounded 16px, soft shadows, accent gradient on primary
+Cards	Light background, subtle border, hover/press state
+Typography	Inter / SF Pro / Manrope, 400–700 weights
+Icons	Lucide / Feather, line-based, consistent stroke
+Animation	Framer Motion style, soft ease-out transitions
+Grid System	8pt spacing baseline, 16–24px card padding
+Nav Bar	Floating, blur + shadow, color-coded active icon
+🧠 MOTION DESIGN (For Figma Prototype)
+
+Transitions: fade-in / slide / scale depending on navigation depth
+
+Mission start: card expands with upward curve motion
+
+Level-up: soft pulse + XP glow animation
+
+Scenario simulation: dynamic value animation with gradient shift
+
+🧩 HANDOFF SUMMARY FOR DESIGNER
+
+Primary Reference:
+
+Orgo UI – clean SaaS modularity
+
+Adaptly – conversational setup flow
+
+Disney AI Assistant – personality integration
+
+Design Goal:
+
+UI must “breathe.” White space and motion carry emotional tone.
+
+Never overload with text or icons.
+
+AI presence should feel like an invisible guide — not a chatbot.
