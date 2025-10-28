@@ -1,4 +1,4 @@
-# AI Lifestyle Companion - Design Guidelines
+# QIC LifeQuest - Design Guidelines
 
 ## Design Philosophy & Tone
 **Design DNA**: Fusion of Notion + Duolingo + Apple Health + ChatGPT — minimal interface that feels "alive"
@@ -9,12 +9,13 @@
 
 ## Color System
 **Base Palette**:
-- Neutral: #F7F8FA (light background), #EAEAEA (mid gray), #121212 (dark)
 
-**Focus Area Accents** (color-coded by category):
-- Driving: Blue #3A7BD5
-- Health: Green #4CAF50
-- Financial: Gold #FFB300
+ **Insurance Category Accents** (color-coded by category):
+ Motor: Blue #3A7BD5
+ Health: Green #4CAF50
+ Travel: Gold #FFB300
+ Home: Teal #38B2AC
+ Life: Violet #7C3AED
 
 **Feedback Colors**:
 - Success: Emerald #2ECC71

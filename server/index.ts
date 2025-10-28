@@ -1,6 +1,9 @@
+import 'dotenv/config';
 import express, { type Request, Response, NextFunction } from "express";
+import cookieParser from "cookie-parser";
 import { registerRoutes } from "./routes";
 import { setupVite, serveStatic, log } from "./vite";
+import { initializeJobs, shutdownJobs } from "./jobs";
 
 const app = express();
 
@@ -9,6 +12,9 @@ declare module 'http' {
     rawBody: unknown
   }
 }
+
+// Middleware
+app.use(cookieParser()); // Parse cookies before other middleware
 app.use(express.json({
   verify: (req, _res, buf) => {
     req.rawBody = buf;
@@ -73,9 +79,21 @@ app.use((req, res, next) => {
   const port = parseInt(process.env.PORT || '5000', 10);
   server.listen({
     port,
-    host: "0.0.0.0",
-    reusePort: true,
+    host: process.env.HOST || "127.0.0.1",
+    reusePort: false,
   }, () => {
-    log(`serving on port ${port}`);
+    log(`serving on http://${process.env.HOST || "127.0.0.1"}:${port}`);
+    
+    // Initialize background jobs after server starts
+    initializeJobs();
+  });
+
+  // Graceful shutdown
+  process.on('SIGTERM', () => {
+    log('SIGTERM signal received: closing HTTP server');
+    shutdownJobs();
+    server.close(() => {
+      log('HTTP server closed');
+    });
   });
 })();

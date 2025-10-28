@@ -10,95 +10,165 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
-import { Trophy } from "lucide-react";
+import { Trophy, Loader2 } from "lucide-react";
+import { useSkillTreeNodes, useUserSkillProgress, useUnlockSkillNode, useCreateChallenge } from "@/hooks/use-api";
 
-export default function Missions() {
-  const [selectedCategory, setSelectedCategory] = useState("driving");
-  const [selectedMission, setSelectedMission] = useState<string | null>(null);
+// Mock user ID for development
+const MOCK_USER_ID = "user-123";
 
-  const missionTrees = {
-    driving: [
-      { title: "Safe Start", xp: 100, status: "completed" as const },
-      { title: "Eco Mode", xp: 150, status: "available" as const, isRecommended: true },
-      { title: "Advanced", xp: 200, status: "locked" as const },
-      { title: "Master", xp: 300, status: "locked" as const },
-    ],
-    health: [
-      { title: "First Steps", xp: 100, status: "completed" as const },
-      { title: "Daily Walk", xp: 150, status: "completed" as const },
-      { title: "Marathon", xp: 250, status: "available" as const, isRecommended: true },
-      { title: "Athlete", xp: 400, status: "locked" as const },
-    ],
-    financial: [
-      { title: "Budget Basics", xp: 100, status: "completed" as const },
-      { title: "Savings Goal", xp: 200, status: "available" as const },
-      { title: "Investment", xp: 300, status: "locked" as const },
-      { title: "Wealth", xp: 500, status: "locked" as const },
-    ],
+export default function Challenges() {
+  const [selectedCategory, setSelectedCategory] = useState("motor");
+  const [selectedChallenge, setSelectedChallenge] = useState<string | null>(null);
+
+  // API hooks
+  const { data: skillNodes = [], isLoading: nodesLoading } = useSkillTreeNodes(selectedCategory);
+  const { data: userProgress = [], isLoading: progressLoading } = useUserSkillProgress(MOCK_USER_ID, selectedCategory);
+  const unlockSkillNode = useUnlockSkillNode();
+  const createChallenge = useCreateChallenge();
+
+  // Create a map of user progress for quick lookup
+  const progressMap = new Map(userProgress.map((p: any) => [p.nodeId, p]));
+
+  // Combine skill nodes with user progress
+  const nodesWithProgress = skillNodes.map((node: any) => {
+    const userNode = progressMap.get(node.id);
+    return {
+      ...node,
+      status: (userNode as any)?.status || "locked",
+      isRecommended: !userNode && node.prerequisites.length === 0,
+    };
+  });
+
+  const handleNodeClick = async (node: any) => {
+    if (node.status === "locked") return;
+    
+    if (node.status === "available") {
+      try {
+        await unlockSkillNode.mutateAsync({ userId: MOCK_USER_ID, nodeId: node.id });
+        setSelectedChallenge(node.title);
+      } catch (error) {
+        console.error("Failed to unlock skill node:", error);
+      }
+    } else {
+      setSelectedChallenge(node.title);
+    }
   };
 
+  const handleStartChallenge = async () => {
+    if (!selectedChallenge) return;
+    
+    try {
+      // Find the skill node for the selected challenge
+      const node = nodesWithProgress.find((n: any) => n.title === selectedChallenge);
+      if (node) {
+        await createChallenge.mutateAsync({
+          userId: MOCK_USER_ID,
+          templateId: node.id, // Using node ID as template ID for now
+          userData: { skillNodeId: node.id }
+        });
+        setSelectedChallenge(null);
+      }
+    } catch (error) {
+      console.error("Failed to start challenge:", error);
+    }
+  };
+
+  if (nodesLoading || progressLoading) {
+    return (
+      <div className="min-h-screen pb-24 p-4 flex items-center justify-center">
+        <div className="text-center">
+          <Loader2 className="h-8 w-8 animate-spin mx-auto mb-4" />
+          <p className="text-muted-foreground">Loading skill tree...</p>
+        </div>
+      </div>
+    );
+  }
+
   return (
-    <div className="min-h-screen pb-24 p-4" data-testid="page-missions">
-      <h1 className="text-2xl font-bold mb-6">Mission Trees</h1>
+    <div className="min-h-screen pb-24 p-4" data-testid="page-challenges">
+      <h1 className="text-2xl font-bold mb-6">Insurance Challenges</h1>
 
       <Tabs value={selectedCategory} onValueChange={setSelectedCategory}>
         <TabsList className="w-full mb-6">
-          <TabsTrigger value="driving" className="flex-1" data-testid="tab-driving">
-            Driving
+          <TabsTrigger value="motor" className="flex-1" data-testid="tab-motor">
+            Motor
           </TabsTrigger>
           <TabsTrigger value="health" className="flex-1" data-testid="tab-health">
             Health
           </TabsTrigger>
-          <TabsTrigger value="financial" className="flex-1" data-testid="tab-financial">
-            Financial
+          <TabsTrigger value="travel" className="flex-1" data-testid="tab-travel">
+            Travel
+          </TabsTrigger>
+          <TabsTrigger value="home" className="flex-1" data-testid="tab-home">
+            Home
+          </TabsTrigger>
+          <TabsTrigger value="life" className="flex-1" data-testid="tab-life">
+            Life
           </TabsTrigger>
         </TabsList>
 
-        {Object.entries(missionTrees).map(([category, nodes]) => (
-          <TabsContent key={category} value={category}>
-            <Card className="p-6">
+        <TabsContent value={selectedCategory}>
+          <Card className="p-6">
+            {nodesWithProgress.length > 0 ? (
               <div className="grid grid-cols-2 gap-4">
-                {nodes.map((node) => (
+                {nodesWithProgress.map((node: any) => (
                   <SkillTreeNode
-                    key={node.title}
-                    {...node}
-                    onClick={() =>
-                      node.status !== "locked" &&
-                      setSelectedMission(node.title)
-                    }
+                    key={node.id}
+                    title={node.title}
+                    xp={node.xpCost}
+                    status={node.status}
+                    isRecommended={node.isRecommended}
+                    onClick={() => handleNodeClick(node)}
                   />
                 ))}
               </div>
-            </Card>
-          </TabsContent>
-        ))}
+            ) : (
+              <div className="text-center py-8 text-muted-foreground">
+                <p>No skill nodes available for this category</p>
+                <p className="text-sm">Check back later for new challenges!</p>
+              </div>
+            )}
+          </Card>
+        </TabsContent>
       </Tabs>
 
       <Dialog
-        open={!!selectedMission}
-        onOpenChange={() => setSelectedMission(null)}
+        open={!!selectedChallenge}
+        onOpenChange={() => setSelectedChallenge(null)}
       >
-        <DialogContent data-testid="dialog-mission-details">
+        <DialogContent data-testid="dialog-challenge-details">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
               <Trophy className="h-5 w-5 text-primary" />
-              {selectedMission}
+              {selectedChallenge}
             </DialogTitle>
             <DialogDescription>
-              Complete this mission to earn XP and unlock new challenges
+              Complete this challenge to earn engagement points and unlock new opportunities
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-4 py-4">
             <div className="space-y-2">
-              <h4 className="font-medium">Mission Steps</h4>
+              <h4 className="font-medium">Challenge Steps</h4>
               <ul className="list-disc list-inside text-sm text-muted-foreground space-y-1">
                 <li>Complete the required activities</li>
                 <li>Track your progress daily</li>
                 <li>Achieve the target goal</li>
               </ul>
             </div>
-            <Button className="w-full" data-testid="button-start-mission">
-              Start Mission
+            <Button 
+              className="w-full" 
+              data-testid="button-start-challenge"
+              onClick={handleStartChallenge}
+              disabled={createChallenge.isPending}
+            >
+              {createChallenge.isPending ? (
+                <>
+                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                  Starting Challenge...
+                </>
+              ) : (
+                "Start Challenge"
+              )}
             </Button>
           </div>
         </DialogContent>

@@ -1,4 +1,4 @@
-import { Home, Target, FlaskConical, Users, User } from "lucide-react";
+import { Home, Target, Users, User } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 interface BottomNavProps {
@@ -8,8 +8,7 @@ interface BottomNavProps {
 
 const navItems = [
   { id: "home", icon: Home, label: "Home" },
-  { id: "missions", icon: Target, label: "Missions" },
-  { id: "simulator", icon: FlaskConical, label: "Simulator" },
+  { id: "challenges", icon: Target, label: "Challenges" },
   { id: "social", icon: Users, label: "Social" },
   { id: "profile", icon: User, label: "Profile" },
 ];

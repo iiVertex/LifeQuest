@@ -4,22 +4,57 @@ import { Button } from "@/components/ui/button";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
-import { Settings, Bell, Shield, Link as LinkIcon, Award } from "lucide-react";
+import { Badge } from "@/components/ui/badge";
+import { Settings, Bell, Shield, Award, LogOut } from "lucide-react";
+import { supabase } from "@/lib/supabase";
+import { useLocation } from "wouter";
+import { useAuth } from "@/hooks/use-auth";
+import { useUser } from "@/hooks/use-api";
 
 export default function Profile() {
+  const [, setLocation] = useLocation();
+  const { user: authUser } = useAuth();
+  const { data: user } = useUser(authUser?.email || "");
+
+  // Get name from auth user metadata or profile data
+  const userName = user?.name || authUser?.user_metadata?.name || "User";
+
+  const handleLogout = async () => {
+    await supabase.auth.signOut();
+    setLocation("/login");
+  };
+
+  const getInitials = (name: string) => {
+    return name
+      .split(" ")
+      .map((n) => n[0])
+      .join("")
+      .toUpperCase()
+      .slice(0, 2);
+  };
+
   return (
     <div className="min-h-screen pb-24 p-4" data-testid="page-profile">
       <div className="text-center mb-6">
         <Avatar className="h-24 w-24 mx-auto mb-3 ring-2 ring-primary">
           <AvatarFallback className="text-2xl font-semibold bg-primary text-primary-foreground">
-            AC
+            {getInitials(userName)}
           </AvatarFallback>
         </Avatar>
-        <h1 className="text-2xl font-bold">Alex Chen</h1>
+        <h1 className="text-2xl font-bold">{userName}</h1>
         <div className="flex items-center justify-center gap-2 text-muted-foreground mt-1">
           <Award className="h-4 w-4" />
-          <span>Level 5 • 1,250 XP</span>
+          <span>Level {user?.level || 0} • {user?.xp || 0} XP</span>
         </div>
+        {user?.focusAreas && user.focusAreas.length > 0 && (
+          <div className="flex flex-wrap gap-2 justify-center mt-3">
+            {user.focusAreas.map((area: string) => (
+              <Badge key={area} variant="secondary">
+                {area}
+              </Badge>
+            ))}
+          </div>
+        )}
       </div>
 
       <div className="space-y-4">
@@ -67,33 +102,15 @@ export default function Profile() {
           </div>
         </Card>
 
-        <Card className="p-4">
-          <h2 className="font-semibold mb-3 flex items-center gap-2">
-            <LinkIcon className="h-4 w-4" />
-            Linked Apps
-          </h2>
-          <div className="space-y-2">
-            <Button variant="outline" className="w-full justify-start" data-testid="button-link-fitness">
-              Connect Fitness App
-            </Button>
-            <Button variant="outline" className="w-full justify-start" data-testid="button-link-finance">
-              Connect Finance App
-            </Button>
-          </div>
-        </Card>
-
-        <Card className="p-4">
-          <h2 className="font-semibold mb-3 flex items-center gap-2">
-            <Shield className="h-4 w-4" />
-            Privacy & Data
-          </h2>
-          <p className="text-sm text-muted-foreground mb-3">
-            Your data is encrypted and never shared without permission
-          </p>
-          <Button variant="outline" className="w-full" data-testid="button-privacy-settings">
-            Privacy Settings
-          </Button>
-        </Card>
+        <Button 
+          variant="destructive" 
+          className="w-full" 
+          onClick={handleLogout}
+          data-testid="button-logout"
+        >
+          <LogOut className="h-4 w-4 mr-2" />
+          Log Out
+        </Button>
       </div>
     </div>
   );
