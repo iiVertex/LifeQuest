@@ -88,11 +88,13 @@ if (!process.env.VERCEL) {
   (async () => {
     const server = await registerRoutes(app);
 
-    // Only serve static files in development (Vercel/Render don't need this)
+    // Serve static files in development OR in production on Railway
     if (app.get("env") === "development") {
       await setupVite(app, server);
+    } else {
+      // Production: serve built frontend files
+      serveStatic(app);
     }
-    // Don't serve static files in production - frontend is on Vercel
 
     const port = parseInt(process.env.PORT || '5000', 10);
     // Use 0.0.0.0 for Railway/Render, 127.0.0.1 for local

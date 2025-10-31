@@ -7,7 +7,7 @@
     "dev": "cross-env NODE_ENV=development tsx server/index.ts",
     "build": "vite build",
     "vercel-build": "vite build",
-    "start": "tsx server/index.ts",
+    "start": "vite build && tsx server/index.ts",
     "check": "tsc"
   },
   "dependencies": {
