@@ -18,10 +18,9 @@ export interface User {
   xpToNextLevel?: number;
   streak?: number;
   focusAreas?: string[];
-  preferences?: {
+  preferences: {
     theme: "light" | "dark";
     notifications: boolean;
-    aiTone: "strict" | "balanced" | "soft";
   };
 }
 

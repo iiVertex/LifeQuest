@@ -199,7 +199,7 @@ export function buildUserContext(user: any, recentChallenges: any[] = []): UserC
     protectionScore,
     lastLoginDays: lastLogin,
     recentChallenges: recentChallenges.slice(0, 5).map((c: any) => c.title || 'Challenge'),
-    preferredTone: user.preferences?.aiTone || 'balanced',
+    preferredTone: (user as any).advisor_tone || 'balanced',
     engagementLevel,
     tier,
     streakDays: user.streak || 0,

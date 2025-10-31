@@ -23,7 +23,7 @@ export async function generateAdvisorMessage(
   context: AdvisorContext
 ): Promise<string> {
   const { user } = context;
-  const tone = user.preferences?.aiTone || 'balanced';
+  const tone = ((user as any).advisor_tone || 'balanced') as 'strict' | 'balanced' | 'soft';
 
   // Build system prompt based on tone
   const toneInstructions = {
@@ -38,8 +38,7 @@ Tone: ${tone.toUpperCase()}
 ${toneInstructions[tone]}
 
 User Context:
-- Level: ${user.level || 1}
-- Engagement Points: ${user.xp || 0} / ${user.xpToNextLevel || 100}
+- Life Protection Score: ${(user as any).life_protection_score || 0}/100
 - Current Streak: ${user.streak || 0} days
 - Insurance Categories: ${user.focusAreas?.join(', ') || 'General insurance engagement'}
 
@@ -105,7 +104,7 @@ export async function generateStreakReminder(
   user: User,
   daysUntilStreakBreaks: number
 ): Promise<string> {
-  const tone = user.preferences?.aiTone || 'balanced';
+  const tone = (user as any).advisor_tone || 'balanced';
 
   if (daysUntilStreakBreaks <= 0) {
     return generateAdvisorMessage('nudge', { user });
@@ -133,7 +132,7 @@ Send a SHORT (1 sentence) reminder to keep their engagement streak alive.`;
  * Generate level-up celebration message
  */
 export async function generateLevelUpMessage(user: User, newLevel: number): Promise<string> {
-  const tone = user.preferences?.aiTone || 'balanced';
+  const tone = (user as any).advisor_tone || 'balanced';
 
   const systemPrompt = `You are QIC's Smart Advisor celebrating a user's level-up.
 Tone: ${tone.toUpperCase()}

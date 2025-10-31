@@ -2,8 +2,10 @@ import { useState } from "react";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { Alert, AlertDescription } from "@/components/ui/alert";
 import { ProgressRing } from "@/components/progress-ring";
 import { MissionCard } from "@/components/mission-card";
+import { ChallengeDetailDialog } from "@/components/challenge-detail-dialog";
 import { 
   Shield, 
   TrendingUp, 
@@ -20,11 +22,11 @@ import {
   Plane,
   Home,
   Users,
-  RefreshCw
+  RefreshCw,
+  Flame,
+  AlertCircle
 } from "lucide-react";
-import { useUser, useActiveChallenges, useSmartAdvisorInteractions, useProtectionScores, useGenerateAutoMessage, useGenerateAIChallenge } from "@/hooks/use-api";
-import { useMissionProgress } from "@/hooks/use-mission-progress";
-import { MissionCompletion, XPGainAnimation, LevelUpAnimation } from "@/components/mission-completion";
+import { useUser, useActiveChallenges, useSmartAdvisorInteractions, useGenerateAutoMessage, useGenerateAIChallenge } from "@/hooks/use-api";
 import { useAuth } from "@/hooks/use-auth";
 import { useLocation } from "wouter";
 
@@ -89,36 +91,30 @@ const mockMilestones = [
 export default function Dashboard() {
   const { user: authUser } = useAuth();
   const [, setLocation] = useLocation();
-  const [selectedChallenge, setSelectedChallenge] = useState<string | null>(null);
+  const [selectedChallenge, setSelectedChallenge] = useState<any>(null);
+  const [challengeDialogOpen, setChallengeDialogOpen] = useState(false);
   
   // API hooks
   const userId = authUser?.email || "user-123";
   const { data: user, isLoading: userLoading } = useUser(userId);
-  const { data: activeChallenges = [], isLoading: challengesLoading } = useActiveChallenges(userId);
+  const { data: activeChallenges = [], isLoading: challengesLoading, refetch: refetchChallenges } = useActiveChallenges(userId);
   const { data: advisorInteractions = [] } = useSmartAdvisorInteractions(userId);
-  const { data: protectionScores = [] } = useProtectionScores(userId);
   
   // AI hooks
   const { mutate: generateAutoMessage, isPending: generatingMessage } = useGenerateAutoMessage();
   const { mutate: generateAIChallenge, isPending: generatingChallenge } = useGenerateAIChallenge();
-
-  // Challenge progress tracking
-  const { 
-    updateMissionProgress, 
-    completeMissionWithRewards,
-    showCompletion,
-    showXPGain,
-    showLevelUp,
-    completionData,
-    xpGain,
-    newLevel,
-    handleCompletionClose,
-    handleXPAnimationComplete,
-    handleLevelUpAnimationComplete
-  } = useMissionProgress();
-
-  // Calculate overall protection score (mock for now)
-  const protectionScore = user?.protectionScore || 76;
+  
+  // Calculate overall protection score from user's Life Protection Score (0-100)
+  const protectionScore = (user as any)?.life_protection_score ?? 0;
+  
+  // Calculate protection level badge based on score
+  const protectionLevel = 
+    protectionScore > 80 ? { name: "Diamond", icon: "💎", desc: "Fully Protected" } :
+    protectionScore > 60 ? { name: "Gold", icon: "🥇", desc: "Highly Protected" } :
+    protectionScore > 40 ? { name: "Silver", icon: "🥈", desc: "Well Protected" } :
+    protectionScore > 20 ? { name: "Bronze", icon: "🥉", desc: "Building Protection" } :
+    { name: "Beginner", icon: "🛡️", desc: "Getting Started" };
+  
   const currentTier = protectionScore >= 90 ? "platinum" : 
                      protectionScore >= 70 ? "gold" : 
                      protectionScore >= 50 ? "silver" : "bronze";
@@ -167,25 +163,47 @@ export default function Dashboard() {
     });
   };
 
-  // Convert challenges
+  // Convert challenges for display
   const challengeCards = activeChallenges.map((challenge: any) => ({
     id: challenge.id,
-    title: challenge.title || "Challenge",
+    title: challenge.title || "Insurance Challenge",
     category: challenge.insuranceCategory || "motor",
     progress: challenge.progress || 0,
-    xpReward: challenge.engagementPointsEarned || 50,
-    timeLeft: challenge.timeLeft || "Active",
+    xpReward: challenge.engagementPoints || 50,
+    timeLeft: "Active",
     icon: categoryIcons[challenge.insuranceCategory as keyof typeof categoryIcons] || <Car className="h-4 w-4" />,
   }));
 
   const handleChallengeClick = (challenge: any) => {
-    setSelectedChallenge(challenge.id);
-    if (challenge.progress < 100) {
-      const newProgress = Math.min(challenge.progress + 25, 100);
-      updateMissionProgress(challenge.id, newProgress);
-      if (newProgress >= 100) {
-        setTimeout(() => completeMissionWithRewards(challenge.id, challenge.xpReward || 100), 1000);
-      }
+    // Find the full challenge data from activeChallenges
+    const fullChallenge = activeChallenges.find((c: any) => c.id === challenge.id);
+    setSelectedChallenge(fullChallenge);
+    setChallengeDialogOpen(true);
+  };
+
+  const handleCompleteChallenge = async (challengeId: string) => {
+    try {
+      // Complete the challenge
+      const response = await fetch(`/api/challenges/${challengeId}/complete`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+      });
+
+      if (!response.ok) throw new Error('Failed to complete challenge');
+
+      const data = await response.json();
+      
+      // Refetch challenges to update UI
+      await refetchChallenges();
+      
+      // Close dialog and show success
+      setChallengeDialogOpen(false);
+      
+      // You could add a toast notification here
+      console.log(`Challenge completed! +${data.scoreIncrease} points`, data);
+    } catch (error) {
+      console.error('Error completing challenge:', error);
     }
   };
 
@@ -206,16 +224,24 @@ export default function Dashboard() {
     <div className="min-h-screen pb-24 bg-gradient-to-b from-background to-muted/20" data-testid="page-dashboard">
       {/* Header */}
       <div className="bg-gradient-to-br from-primary/10 via-primary/5 to-background border-b">
-        <div className="p-6 max-w-7xl mx-auto">
-          <div className="flex items-center justify-between mb-4">
-            <div>
-              <h1 className="text-2xl font-bold">Engagement Hub</h1>
-              <p className="text-sm text-muted-foreground">Welcome back, {user?.name || "User"}!</p>
+        <div className="p-4 md:p-6 max-w-7xl mx-auto">
+          <div className="flex items-center md:items-center justify-between gap-3">
+            <div className="flex-1 min-w-0">
+              <h1 className="text-xl md:text-2xl font-bold leading-tight">Engagement Hub</h1>
+              <p className="text-sm md:text-sm text-muted-foreground truncate">Welcome back, {user?.name || "User"}!</p>
             </div>
-            <Badge className={`${tier.bgColor} ${tier.textColor} border ${tier.borderColor} px-4 py-2`}>
-              <TierIcon className="h-4 w-4 mr-2" />
-              {tier.name} Tier
-            </Badge>
+            
+            <div className="flex flex-col md:flex-row items-end md:items-center gap-2 md:gap-4 flex-shrink-0">
+              <div className="flex items-center gap-1.5 bg-gradient-to-r from-orange-500/10 to-red-500/10 border border-orange-500/20 rounded-md px-2.5 py-1.5">
+                <Flame className="h-4 w-4 text-orange-500" />
+                <span className="text-sm font-bold text-orange-600 dark:text-orange-400">{user?.streak || 0}</span>
+              </div>
+              
+              <Badge className={`${tier.bgColor} ${tier.textColor} border ${tier.borderColor} px-3 py-1.5 md:px-4 md:py-2 text-xs md:text-sm`}>
+                <TierIcon className="h-4 w-4 mr-1.5 md:mr-2" />
+                {tier.name} Tier
+              </Badge>
+            </div>
           </div>
         </div>
       </div>
@@ -270,7 +296,17 @@ export default function Dashboard() {
             </div>
 
             <div className="flex flex-col items-center justify-center">
-              <ProgressRing progress={protectionScore} size={220} strokeWidth={16} />
+              <ProgressRing progress={protectionScore} size={220} strokeWidth={16}>
+                <div className="text-center">
+                  <div className="text-5xl font-bold mb-1">{protectionScore}</div>
+                  <div className="text-sm text-muted-foreground mb-2">Life Protection</div>
+                  <div className="text-lg font-semibold flex items-center gap-1">
+                    <span>{protectionLevel.icon}</span>
+                    <span>{protectionLevel.name}</span>
+                  </div>
+                  <div className="text-xs text-muted-foreground">{protectionLevel.desc}</div>
+                </div>
+              </ProgressRing>
               <Button 
                 variant="outline" 
                 className="mt-6"
@@ -492,29 +528,14 @@ export default function Dashboard() {
           </Card>
         </div>
       </div>
-
-      {/* Progress Animations */}
-      {showCompletion && completionData && (
-        <MissionCompletion
-          isOpen={showCompletion}
-          onClose={handleCompletionClose}
-          mission={completionData}
-        />
-      )}
       
-      {showXPGain && (
-        <XPGainAnimation
-          xp={xpGain}
-          onComplete={handleXPAnimationComplete}
-        />
-      )}
-      
-      {showLevelUp && (
-        <LevelUpAnimation
-          newLevel={newLevel}
-          onComplete={handleLevelUpAnimationComplete}
-        />
-      )}
+      {/* Challenge Detail Dialog */}
+      <ChallengeDetailDialog
+        open={challengeDialogOpen}
+        onOpenChange={setChallengeDialogOpen}
+        challenge={selectedChallenge}
+        onComplete={handleCompleteChallenge}
+      />
     </div>
   );
 }

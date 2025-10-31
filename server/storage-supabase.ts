@@ -44,7 +44,6 @@ export interface IStorage {
   getUser(id: string): Promise<User | undefined>;
   getUserByUsername(username: string): Promise<User | undefined>;
   getUserByEmail(email: string): Promise<User | undefined>;
-  getAllUsers(): Promise<User[]>;
   createUser(user: InsertUser): Promise<User>;
   updateUser(id: string, updates: Partial<User>): Promise<User | undefined>;
   
@@ -53,10 +52,9 @@ export interface IStorage {
   createChallenge(challenge: Partial<ChallengeTemplate>): Promise<ChallengeTemplate>;
   getActiveChallenges(userId: string): Promise<UserChallenge[]>;
   getUserChallenges(userId: string): Promise<UserChallenge[]>;
-  getUserChallenge(challengeId: string): Promise<UserChallenge | undefined>;
   createUserChallenge(userChallenge: InsertUserChallenge): Promise<UserChallenge>;
   updateChallengeProgress(challengeId: string, progress: number): Promise<UserChallenge | undefined>;
-  completeChallenge(challengeId: string, engagementPoints?: number): Promise<UserChallenge | undefined>;
+  completeChallenge(challengeId: string): Promise<UserChallenge | undefined>;
   
   // Skill Tree operations
   getSkillTreeNodes(): Promise<SkillTreeNode[]>;
@@ -83,7 +81,6 @@ export class SupabaseStorage implements IStorage {
       .single();
     
     if (error) {
-      if (error.code === 'PGRST116') return undefined; // Not found - this is expected
       console.error('Error fetching user:', error);
       return undefined;
     }
@@ -120,29 +117,10 @@ export class SupabaseStorage implements IStorage {
     return data as User;
   }
 
-  async getAllUsers(): Promise<User[]> {
-    const { data, error } = await supabase
-      .from('users')
-      .select('*')
-      .order('created_at', { ascending: false });
-    
-    if (error) {
-      console.error('Error fetching all users:', error);
-      return [];
-    }
-    return data as User[];
-  }
-
   async createUser(insertUser: InsertUser): Promise<User> {
     const userData = {
       id: randomUUID(),
-      username: insertUser.username,
-      password: insertUser.password,
-      name: insertUser.name,
-      email: insertUser.email,
-      age: insertUser.age,
-      gender: insertUser.gender,
-      advisor_tone: insertUser.advisorTone,
+      ...insertUser,
       level: 1,
       xp: 0,
       xp_to_next_level: 100,
@@ -193,18 +171,9 @@ export class SupabaseStorage implements IStorage {
   }
 
   async createChallenge(challenge: Partial<ChallengeTemplate>): Promise<ChallengeTemplate> {
-    // Convert camelCase to snake_case for Supabase
-    const challengeData: any = {
+    const challengeData = {
       id: randomUUID(),
-      title: challenge.title,
-      description: challenge.description,
-      insurance_category: challenge.insuranceCategory,
-      difficulty: challenge.difficulty,
-      engagement_points: challenge.engagementPoints,
-      estimated_duration: challenge.estimatedDuration,
-      requirements: challenge.requirements,
-      prerequisites: challenge.prerequisites,
-      is_active: challenge.isActive !== undefined ? challenge.isActive : true,
+      ...challenge,
       created_at: new Date().toISOString(),
     };
 
@@ -224,18 +193,7 @@ export class SupabaseStorage implements IStorage {
   async getActiveChallenges(userId: string): Promise<UserChallenge[]> {
     const { data, error } = await supabase
       .from('user_challenges')
-      .select(`
-        *,
-        template:challenge_templates!template_id (
-          title,
-          description,
-          insurance_category,
-          difficulty,
-          engagement_points,
-          estimated_duration,
-          requirements
-        )
-      `)
+      .select('*')
       .eq('user_id', userId)
       .eq('status', 'active')
       .order('started_at', { ascending: false });
@@ -244,37 +202,13 @@ export class SupabaseStorage implements IStorage {
       console.error('Error fetching active challenges:', error);
       return [];
     }
-    
-    // Flatten the nested template data
-    const challenges = data.map((item: any) => ({
-      ...item,
-      title: item.template?.title,
-      description: item.template?.description,
-      insuranceCategory: item.template?.insurance_category,
-      difficulty: item.template?.difficulty,
-      engagementPoints: item.template?.engagement_points,
-      estimatedDuration: item.template?.estimated_duration,
-      requirements: item.template?.requirements,
-    }));
-    
-    return challenges as UserChallenge[];
+    return data as UserChallenge[];
   }
 
   async getUserChallenges(userId: string): Promise<UserChallenge[]> {
     const { data, error } = await supabase
       .from('user_challenges')
-      .select(`
-        *,
-        challenge_templates (
-          title,
-          description,
-          difficulty,
-          insurance_category,
-          engagement_points,
-          estimated_duration,
-          requirements
-        )
-      `)
+      .select('*')
       .eq('user_id', userId)
       .order('started_at', { ascending: false });
     
@@ -282,69 +216,13 @@ export class SupabaseStorage implements IStorage {
       console.error('Error fetching user challenges:', error);
       return [];
     }
-    
-    // Flatten the template data into the challenge object
-    const challenges = (data as any[]).map((challenge: any) => {
-      const template = challenge.challenge_templates;
-      return {
-        ...challenge,
-        title: template?.title,
-        description: template?.description,
-        difficulty: template?.difficulty,
-        insuranceCategory: template?.insurance_category,
-        engagementPoints: template?.engagement_points,
-        estimatedDuration: template?.estimated_duration,
-        requirements: template?.requirements,
-      };
-    });
-    
-    return challenges as UserChallenge[];
-  }
-
-  async getUserChallenge(challengeId: string): Promise<UserChallenge | undefined> {
-    const { data, error } = await supabase
-      .from('user_challenges')
-      .select(`
-        *,
-        challenge_templates (
-          title,
-          description,
-          difficulty,
-          insurance_category,
-          engagement_points,
-          estimated_duration,
-          requirements
-        )
-      `)
-      .eq('id', challengeId)
-      .single();
-    
-    if (error) {
-      console.error('Error fetching user challenge:', error);
-      return undefined;
-    }
-    
-    // Flatten the template data into the challenge object
-    const template = (data as any).challenge_templates;
-    return {
-      ...data,
-      title: template?.title,
-      description: template?.description,
-      difficulty: template?.difficulty,
-      insuranceCategory: template?.insurance_category,
-      engagementPoints: template?.engagement_points,
-      estimatedDuration: template?.estimated_duration,
-      requirements: template?.requirements,
-    } as UserChallenge;
+    return data as UserChallenge[];
   }
 
   async createUserChallenge(userChallenge: InsertUserChallenge): Promise<UserChallenge> {
-    // Convert camelCase to snake_case for Supabase
-    const challengeData: any = {
+    const challengeData = {
       id: randomUUID(),
-      user_id: userChallenge.userId,
-      template_id: userChallenge.templateId,
-      user_data: userChallenge.userData || {},
+      ...userChallenge,
       progress: 0,
       status: 'active',
       started_at: new Date().toISOString(),
@@ -379,21 +257,14 @@ export class SupabaseStorage implements IStorage {
     return data as UserChallenge;
   }
 
-  async completeChallenge(challengeId: string, engagementPoints?: number): Promise<UserChallenge | undefined> {
-    const updateData: any = {
-      status: 'completed',
-      progress: 100,
-      completed_at: new Date().toISOString(),
-    };
-    
-    // Include engagement points if provided
-    if (engagementPoints !== undefined) {
-      updateData.engagement_points_earned = engagementPoints;
-    }
-    
+  async completeChallenge(challengeId: string): Promise<UserChallenge | undefined> {
     const { data, error } = await supabase
       .from('user_challenges')
-      .update(updateData)
+      .update({
+        status: 'completed',
+        progress: 100,
+        completed_at: new Date().toISOString(),
+      })
       .eq('id', challengeId)
       .select()
       .single();

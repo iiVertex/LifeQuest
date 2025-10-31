@@ -28,12 +28,14 @@ export class ProtectionScoreCalculator {
       productDiversity: this.calculateProductDiversity()
     };
 
-    return await storage.updateProtectionScore(
+    const score = await storage.updateProtectionScore(
       this.userId,
       "overall",
       overallScore,
       factors
     );
+    
+    return score;
   }
 
   async calculateCategoryScore(category: string): Promise<ProtectionScore> {
@@ -48,12 +50,14 @@ export class ProtectionScoreCalculator {
       productDiversity: this.calculateCategoryDiversity(category)
     };
 
-    return await storage.updateProtectionScore(
+    const protectionScore = await storage.updateProtectionScore(
       this.userId,
       category,
       score,
       factors
     );
+    
+    return protectionScore;
   }
 
   private async calculateCategoryScores(): Promise<Record<string, number>> {

@@ -4,7 +4,6 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Progress } from "@/components/ui/progress";
 import { Card } from "@/components/ui/card";
-import { FocusAreaSelector } from "@/components/focus-area-selector";
 import { ProgressRing } from "@/components/progress-ring";
 import { Loader2, Eye, EyeOff, CheckCircle2, XCircle, Shield, Car, Heart, Plane, Home, Users, Trophy, Target, Sparkles } from "lucide-react";
 import { supabase } from "@/lib/supabase";
@@ -19,23 +18,20 @@ export default function Signup() {
   const [age, setAge] = useState("");
   const [gender, setGender] = useState("");
 
-  // Step 3: Email & Password
+  // Step 2: Email & Password
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
 
-  // Step 4: Insurance Priority (Personalization Q1)
+  // Step 2: Insurance Priority
   const [insurancePriority, setInsurancePriority] = useState("");
-
-  // Step 5: Advisor Tone (Personalization Q2)
+  
+  // Advisor Tone
   const [advisorTone, setAdvisorTone] = useState("balanced");
 
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
-
-  // Step 2: Focus Areas
-  const [selectedAreas, setSelectedAreas] = useState<string[]>([]);
 
   const insuranceOptions = [
     { id: "motor", label: "Motor", icon: Car, color: "text-blue-500" },
@@ -83,21 +79,15 @@ export default function Signup() {
             name,
             age: parseInt(age),
             gender,
-            focus_areas: selectedAreas,
+            focus_areas: [insurancePriority],
+            advisor_tone: advisorTone,
           },
         },
       });
 
       if (authError) throw authError;
 
-      // Check if email confirmation is required
-      if (authData?.user && !authData.session) {
-        setError("Please check your email to verify your account before signing in.");
-        setTimeout(() => setLocation("/login"), 3000);
-        return;
-      }
-
-      // 2. Create user profile in our database with zero initial values
+      // 2. Create user profile in our database (do this BEFORE checking email confirmation)
       const res = await fetch("/api/auth/register", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -106,7 +96,9 @@ export default function Signup() {
           password,
           name,
           email,
-          focusAreas: selectedAreas,
+          age: parseInt(age),
+          gender,
+          focusAreas: [insurancePriority],
           insurancePriority,
           advisorTone,
         }),
@@ -118,9 +110,20 @@ export default function Signup() {
         throw new Error(errData.message || "Registration failed");
       }
 
+      const data = await res.json();
+      console.log("✅ User registered successfully:", data);
+
+      // Check if email confirmation is required
+      if (authData?.user && !authData.session) {
+        setError("Please check your email to verify your account before signing in.");
+        setTimeout(() => setLocation("/login"), 3000);
+        return;
+      }
+
       // Success - redirect to dashboard
       setLocation("/dashboard");
     } catch (err: any) {
+      console.error("❌ Signup error:", err);
       setError(err.message || "Signup failed");
     } finally {
       setLoading(false);
@@ -134,25 +137,23 @@ export default function Signup() {
       case 1:
         return name.trim().length > 0 && age.trim().length > 0 && gender.length > 0;
       case 2:
-        return selectedAreas.length > 0;
+        return insurancePriority.length > 0; // Insurance Categories
       case 3:
-        return insurancePriority.length > 0; // Personalization Q1
+        return advisorTone.length > 0; // Advisor Tone
       case 4:
-        return advisorTone.length > 0; // Personalization Q2
-      case 5:
         return true; // Smart Advisor Setup
-      case 6:
+      case 5:
         return true; // First Challenge
-      case 7:
+      case 6:
         return true; // Protection Score
-      case 8:
+      case 7:
         return email.trim().length > 0 && isPasswordValid; // Email & Password LAST
       default:
         return false;
     }
   };
 
-  const progress = ((step + 1) / 9) * 100;
+  const progress = ((step + 1) / 8) * 100;
 
   return (
     <div className="min-h-screen flex flex-col">
@@ -247,34 +248,14 @@ export default function Signup() {
                     <option value="">Select gender</option>
                     <option value="male">Male</option>
                     <option value="female">Female</option>
-                    <option value="non-binary">Non-binary</option>
-                    <option value="prefer-not-to-say">Prefer not to say</option>
                   </select>
                 </div>
               </div>
             </>
           )}
 
-          {/* Step 2: Focus Areas */}
+          {/* Step 2: Insurance Categories */}
           {step === 2 && (
-            <>
-              <div className="text-center">
-                <h2 className="text-2xl font-bold">What do you want to master?</h2>
-                <p className="text-muted-foreground mt-2">Select one or more areas</p>
-              </div>
-              <FocusAreaSelector
-                selected={selectedAreas}
-                onToggle={(area) => {
-                  setSelectedAreas((prev) =>
-                    prev.includes(area) ? prev.filter((a) => a !== area) : [...prev, area]
-                  );
-                }}
-              />
-            </>
-          )}
-
-          {/* Step 3: Insurance Priority */}
-          {step === 3 && (
             <>
               <div className="text-center mb-8">
                 <h2 className="text-2xl font-bold">Which insurance matters most to you?</h2>
@@ -314,11 +295,11 @@ export default function Signup() {
             </>
           )}
 
-          {/* Step 4: Advisor Tone */}
-          {step === 4 && (
+          {/* Step 3: Advisor Tone */}
+          {step === 3 && (
             <>
               <div className="text-center mb-8">
-                <h2 className="text-2xl font-bold">How do you prefer your assistant to communicate?</h2>
+                <h2 className="text-2xl font-bold">How should your Smart Advisor communicate?</h2>
                 <p className="text-muted-foreground mt-2">Choose the tone that motivates you best</p>
               </div>
               <div className="space-y-3">
@@ -352,8 +333,8 @@ export default function Signup() {
             </>
           )}
 
-          {/* Step 5: Smart Advisor Setup */}
-          {step === 5 && (
+          {/* Step 4: Smart Advisor Setup */}
+          {step === 4 && (
             <>
               <div className="max-w-xl mx-auto space-y-8 text-center">
                 <div className="p-8 rounded-full bg-gradient-to-br from-primary/20 to-primary/5 w-40 h-40 mx-auto flex items-center justify-center animate-pulse">
@@ -371,8 +352,8 @@ export default function Signup() {
             </>
           )}
 
-          {/* Step 6: First Challenge */}
-          {step === 6 && (
+          {/* Step 5: First Challenge */}
+          {step === 5 && (
             <>
               <div className="text-center mb-6">
                 <h2 className="text-2xl font-bold mb-3">Your First Challenge Unlocked! 🎯</h2>
@@ -409,8 +390,8 @@ export default function Signup() {
             </>
           )}
 
-          {/* Step 7: Protection Score */}
-          {step === 7 && (
+          {/* Step 6: Protection Score */}
+          {step === 6 && (
             <>
               <div className="max-w-xl mx-auto space-y-8 text-center">
                 <div className="space-y-4">
@@ -460,8 +441,8 @@ export default function Signup() {
             </>
           )}
 
-          {/* Step 8: Email & Password (FINAL STEP) */}
-          {step === 8 && (
+          {/* Step 7: Email & Password (FINAL STEP) */}
+          {step === 7 && (
             <>
               <div className="text-center mb-8">
                 <h2 className="text-2xl font-bold">Create Your Account</h2>
@@ -531,7 +512,7 @@ export default function Signup() {
         <div className="flex-1" />
         <Button
           onClick={() => {
-            if (step < 8) {
+            if (step < 7) {
               setStep(step + 1);
             } else {
               handleSignup();
@@ -544,7 +525,7 @@ export default function Signup() {
               <Loader2 className="h-4 w-4 mr-2 animate-spin" />
               Creating account...
             </>
-          ) : step === 8 ? (
+          ) : step === 7 ? (
             "Get Started"
           ) : (
             "Continue"

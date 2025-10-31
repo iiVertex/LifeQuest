@@ -11,24 +11,17 @@ interface OnboardingProps {
 }
 
 const insuranceCategories = [
-  { id: "motor", label: "Motor Insurance", icon: Car, color: "text-blue-500" },
-  { id: "health", label: "Health Insurance", icon: Heart, color: "text-red-500" },
-  { id: "travel", label: "Travel Insurance", icon: Plane, color: "text-green-500" },
-  { id: "home", label: "Home Insurance", icon: Home, color: "text-orange-500" },
-  { id: "life", label: "Life Insurance", icon: Users, color: "text-purple-500" },
-];
-
-const advisorTones = [
-  { id: "strict", label: "Strict", description: "Direct and to-the-point" },
-  { id: "balanced", label: "Balanced", description: "Professional yet friendly" },
-  { id: "friendly", label: "Friendly", description: "Warm and encouraging" },
+  { id: "motor", label: "Motor", icon: Car, color: "text-blue-500" },
+  { id: "health", label: "Health", icon: Heart, color: "text-red-500" },
+  { id: "travel", label: "Travel", icon: Plane, color: "text-green-500" },
+  { id: "home", label: "Home", icon: Home, color: "text-orange-500" },
+  { id: "life", label: "Life", icon: Users, color: "text-purple-500" },
 ];
 
 export default function Onboarding({ onComplete }: OnboardingProps) {
   const [step, setStep] = useState(0);
   const [name, setName] = useState("");
-  const [selectedCategory, setSelectedCategory] = useState("");
-  const [advisorTone, setAdvisorTone] = useState("balanced");
+  const [selectedCategories, setSelectedCategories] = useState<string[]>([]);
   
   const registerMutation = useMutation({
     mutationFn: async (data: any) => {
@@ -92,17 +85,23 @@ export default function Onboarding({ onComplete }: OnboardingProps) {
         return (
           <div className="max-w-2xl mx-auto space-y-6">
             <div className="text-center mb-8">
-              <h2 className="text-3xl font-bold mb-3">Which insurance matters most to you?</h2>
-              <p className="text-muted-foreground">We'll personalize your challenges based on your priority</p>
+              <h2 className="text-3xl font-bold mb-3">Select Your Insurance Categories</h2>
+              <p className="text-muted-foreground">Choose the categories you want to focus on (select at least one)</p>
             </div>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               {insuranceCategories.map((category) => {
                 const Icon = category.icon;
-                const isSelected = selectedCategory === category.id;
+                const isSelected = selectedCategories.includes(category.id);
                 return (
                   <Card
                     key={category.id}
-                    onClick={() => setSelectedCategory(category.id)}
+                    onClick={() => {
+                      if (isSelected) {
+                        setSelectedCategories(selectedCategories.filter(c => c !== category.id));
+                      } else {
+                        setSelectedCategories([...selectedCategories, category.id]);
+                      }
+                    }}
                     className={`p-6 cursor-pointer transition-all hover:scale-105 ${
                       isSelected ? "border-primary bg-primary/5 shadow-lg" : "hover:border-primary/50"
                     }`}
@@ -126,48 +125,13 @@ export default function Onboarding({ onComplete }: OnboardingProps) {
                 );
               })}
             </div>
+            <p className="text-sm text-center text-muted-foreground">
+              {selectedCategories.length} selected
+            </p>
           </div>
         );
 
       case 2:
-        return (
-          <div className="max-w-xl mx-auto space-y-6">
-            <div className="text-center mb-8">
-              <h2 className="text-3xl font-bold mb-3">How should your Smart Advisor communicate?</h2>
-              <p className="text-muted-foreground">Choose the tone that motivates you best</p>
-            </div>
-            <div className="space-y-3">
-              {advisorTones.map((tone) => {
-                const isSelected = advisorTone === tone.id;
-                return (
-                  <Card
-                    key={tone.id}
-                    onClick={() => setAdvisorTone(tone.id)}
-                    className={`p-5 cursor-pointer transition-all hover:scale-102 ${
-                      isSelected ? "border-primary bg-primary/5 shadow-lg" : "hover:border-primary/50"
-                    }`}
-                  >
-                    <div className="flex items-center justify-between">
-                      <div>
-                        <h3 className="font-semibold text-lg">{tone.label}</h3>
-                        <p className="text-sm text-muted-foreground">{tone.description}</p>
-                      </div>
-                      {isSelected && (
-                        <div className="h-6 w-6 rounded-full bg-primary flex items-center justify-center shrink-0">
-                          <svg className="h-4 w-4 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-                          </svg>
-                        </div>
-                      )}
-                    </div>
-                  </Card>
-                );
-              })}
-            </div>
-          </div>
-        );
-
-      case 3:
         return (
           <div className="max-w-xl mx-auto space-y-8 text-center">
             <div className="p-8 rounded-full bg-gradient-to-br from-primary/20 to-primary/5 w-40 h-40 mx-auto flex items-center justify-center animate-pulse">
@@ -185,7 +149,7 @@ export default function Onboarding({ onComplete }: OnboardingProps) {
           </div>
         );
 
-      case 4:
+      case 3:
         return (
           <div className="max-w-xl mx-auto space-y-8">
             <div className="text-center mb-6">
@@ -223,7 +187,7 @@ export default function Onboarding({ onComplete }: OnboardingProps) {
           </div>
         );
 
-      case 5:
+      case 4:
         return (
           <div className="max-w-xl mx-auto space-y-8 text-center">
             <div className="space-y-4">
@@ -274,7 +238,7 @@ export default function Onboarding({ onComplete }: OnboardingProps) {
     }
   };
 
-  const totalSteps = 6;
+  const totalSteps = 5;
   const progress = ((step + 1) / totalSteps) * 100;
 
   const handleContinue = () => {
@@ -283,8 +247,8 @@ export default function Onboarding({ onComplete }: OnboardingProps) {
     } else {
       registerMutation.mutate({
         name: name || "User",
-        preferredCategory: selectedCategory,
-        advisorTone,
+        focusAreas: selectedCategories,
+        advisorTone: "balanced",
         protectionScore: 42,
         tier: "bronze",
       });
@@ -294,8 +258,7 @@ export default function Onboarding({ onComplete }: OnboardingProps) {
   const isStepValid = () => {
     switch (step) {
       case 0: return true;
-      case 1: return selectedCategory.length > 0;
-      case 2: return advisorTone.length > 0;
+      case 1: return selectedCategories.length > 0;
       default: return true;
     }
   };

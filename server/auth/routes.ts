@@ -1,7 +1,6 @@
 import { Router, type Request, Response } from 'express';
 import { z } from 'zod';
 import { storage } from '../storage';
-import { persistUser } from '../db-sync';
 import { hashPassword, comparePassword, validatePasswordStrength } from './password';
 import {
   generateAccessToken,
@@ -20,7 +19,10 @@ const registerSchema = z.object({
   password: z.string().min(8),
   name: z.string().optional(),
   email: z.string().email().optional(),
+  age: z.number().optional(),
+  gender: z.string().optional(),
   focusAreas: z.array(z.string()).optional(),
+  advisorTone: z.string().optional(),
 });
 
 const loginSchema = z.object({
@@ -62,17 +64,13 @@ router.post('/register', async (req: Request, res: Response) => {
       password: hashedPassword,
       name: body.name,
       email: body.email,
+      age: body.age,
+      gender: body.gender,
       focusAreas: body.focusAreas || [],
+      advisorTone: body.advisorTone,
     });
 
-    // Persist user to database
-    try {
-      await persistUser(user);
-      console.log(`✅ New user registered and persisted: ${user.username} (${user.id})`);
-    } catch (dbError) {
-      console.error('⚠️  User created in memory but failed to persist to database:', dbError);
-      // Continue anyway - user is in memory and can use the app
-    }
+    console.log(`✅ New user registered: ${user.username} (${user.id})`);
 
     // Generate tokens
     const accessToken = generateAccessToken(user);
@@ -132,14 +130,22 @@ router.post('/login', async (req: Request, res: Response) => {
     res.cookie('accessToken', accessToken, ACCESS_TOKEN_COOKIE_OPTIONS);
     res.cookie('refreshToken', refreshToken, REFRESH_TOKEN_COOKIE_OPTIONS);
 
-    // Update last active date
-    await storage.updateUser(user.id, { lastActiveDate: new Date() });
+    // Update daily streak on login (only once per day)
+    let streakUpdate;
+    try {
+      const { updateDailyStreak } = await import('../services/streak-tracker');
+      streakUpdate = await updateDailyStreak(user.id);
+      console.log('[Login Streak]', streakUpdate.message);
+    } catch (error) {
+      console.error('[Login Streak] Error updating streak:', error);
+    }
 
     // Return user data (without password)
     const { password: _, ...userWithoutPassword } = user;
     res.json({
       message: 'Login successful',
       user: userWithoutPassword,
+      streak: streakUpdate,
     });
   } catch (error) {
     if (error instanceof z.ZodError) {

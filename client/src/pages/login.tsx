@@ -20,16 +20,38 @@ export default function Login() {
     setError("");
 
     try {
-      const { error } = await supabase.auth.signInWithPassword({
+      // 1. Login with Supabase Auth
+      const { data: authData, error: authError } = await supabase.auth.signInWithPassword({
         email,
         password,
       });
 
-      if (error) throw error;
+      if (authError) throw authError;
+
+      // 2. Also login to our backend to get cookies/session
+      const username = email.split("@")[0].toLowerCase().replace(/[^a-z0-9]/g, "");
+      const res = await fetch("/api/auth/login", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          username,
+          password,
+        }),
+        credentials: "include",
+      });
+
+      if (!res.ok) {
+        const errData = await res.json();
+        console.warn("Backend login failed:", errData.message);
+        // Continue anyway if Supabase auth worked
+      }
+
+      console.log("✅ Login successful");
 
       // Login successful, redirect to dashboard
       setLocation("/dashboard");
     } catch (err: any) {
+      console.error("❌ Login error:", err);
       setError(err.message || "Login failed");
     } finally {
       setLoading(false);

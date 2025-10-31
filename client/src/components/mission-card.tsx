@@ -1,12 +1,12 @@
 import { Card } from "@/components/ui/card";
 import { ProgressRing } from "./progress-ring";
-import { Clock, Trophy } from "lucide-react";
+import { Clock, Shield } from "lucide-react";
 
 interface MissionCardProps {
   title: string;
   category: "driving" | "health" | "financial";
   progress: number;
-  xpReward: number;
+  xpReward: number; // Actually points now, but keeping prop name for compatibility
   timeLeft?: string;
   icon: React.ReactNode;
   onClick?: () => void;
@@ -55,8 +55,8 @@ export function MissionCard({
               </div>
             )}
             <div className="flex items-center gap-1">
-              <Trophy className="h-3 w-3" />
-              <span>{xpReward} XP</span>
+              <Shield className="h-3 w-3" />
+              <span>+{xpReward} pts</span>
             </div>
           </div>
         </div>

@@ -14,7 +14,8 @@ export async function checkMilestones(userId: string): Promise<Milestone[]> {
   const user = await storage.getUser(userId);
   if (!user) return [];
 
-  const completedChallenges = await storage.getCompletedChallenges(userId);
+  const allChallenges = await storage.getUserChallenges(userId);
+  const completedChallenges = allChallenges.filter(c => c.status === 'completed');
   const userMilestones = await storage.getUserMilestones(userId);
   const allMilestones = await storage.getMilestones();
 
@@ -107,9 +108,12 @@ async function checkMilestoneConditions(
     }
   }
 
-  // Level milestones
+  // Protection Score milestones
   if (conditions.level) {
-    if ((user.level || 1) >= conditions.level) {
+    const lifeProtectionScore = (user as any).lifeProtectionScore || 0;
+    // Map old level requirements to protection scores (level 5 = 25 score, level 10 = 50 score, etc.)
+    const requiredScore = conditions.level * 5;
+    if (lifeProtectionScore >= requiredScore) {
       return true;
     }
   }

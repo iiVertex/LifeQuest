@@ -3,25 +3,39 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Card } from "@/components/ui/card";
-import { ArrowLeft, Send, Sparkles } from "lucide-react";
+import { ArrowLeft, Send, Sparkles, Loader2 } from "lucide-react";
 import { useLocation } from "wouter";
 import { useAuth } from "@/hooks/use-auth";
 import { useUser } from "@/hooks/use-api";
+import { useQueryClient } from "@tanstack/react-query";
 
 interface Message {
   id: string;
   role: "user" | "assistant";
   content: string;
-  timestamp: Date;
+  timestamp: number;
+  challengeSuggestion?: any; // For AI-suggested challenges
+}
+
+interface ChallengeSuggestion {
+  title: string;
+  description: string;
+  category: string;
+  difficulty: string;
+  engagementPoints: number;
+  estimatedDuration: number;
+  steps: string[];
 }
 
 export default function AIChat() {
   const [, setLocation] = useLocation();
   const { user: authUser } = useAuth();
   const { data: user } = useUser(authUser?.email || "");
+  const queryClient = useQueryClient();
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState("");
   const [isLoading, setIsLoading] = useState(false);
+  const [confirmingChallenge, setConfirmingChallenge] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
   const scrollToBottom = () => {
@@ -33,8 +47,8 @@ export default function AIChat() {
     const welcomeMessage: Message = {
       id: "welcome",
       role: "assistant",
-      content: `Hi ${user?.name || "there"}! 👋 I'm your AI Life Companion. I'm here to help you achieve your goals and improve your lifestyle. How can I assist you today?`,
-      timestamp: new Date(),
+      content: `Hi ${user?.name || "there"}! 👋 I'm your Smart Advisor. I'm here to help you build your Life Protection Score and achieve insurance success. How can I assist you today?`,
+      timestamp: Date.now(),
     };
     setMessages([welcomeMessage]);
   }, [user?.name]);
@@ -44,71 +58,202 @@ export default function AIChat() {
   }, [messages]);
 
   const quickActions = [
-    { id: "suggest-mission", label: "Suggest a New Mission", icon: "🎯" },
+    { id: "suggest-challenge", label: "Suggest a New Challenge", icon: "🎯" },
     { id: "rate-profile", label: "Rate My Profile", icon: "⭐" },
-    { id: "show-stats", label: "Display My Current Statistics", icon: "📊" },
+    { id: "show-stats", label: "Show My Stats", icon: "📊" },
   ];
 
-  const handleQuickAction = (actionId: string) => {
+  const handleQuickAction = async (actionId: string) => {
+    const actionLabel = quickActions.find((a) => a.id === actionId)?.label || "";
+    
     const userMessage: Message = {
       id: Date.now().toString(),
       role: "user",
-      content: quickActions.find((a) => a.id === actionId)?.label || "",
-      timestamp: new Date(),
+      content: actionLabel,
+      timestamp: Date.now(),
     };
 
     setMessages((prev) => [...prev, userMessage]);
+    setIsLoading(true);
 
-    // Placeholder responses
-    setTimeout(() => {
-      let response = "";
-      switch (actionId) {
-        case "suggest-mission":
-          response = "I'm analyzing your profile and goals to suggest the perfect mission for you. This feature is coming soon!";
-          break;
-        case "rate-profile":
-          response = "I'm reviewing your profile completeness and activity. Profile rating feature is coming soon!";
-          break;
-        case "show-stats":
-          response = "I'm gathering your current statistics and progress. Detailed stats feature is coming soon!";
-          break;
+    try {
+      // Special handling for challenge suggestion
+      if (actionId === "suggest-challenge") {
+        const res = await fetch("/api/smart-advisor/suggest-challenge", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            userId: user?.id,
+            context: "Suggest a new personalized challenge for me based on my profile and focus areas"
+          }),
+          credentials: "include",
+        });
+
+        if (!res.ok) throw new Error("Failed to generate challenge");
+
+        const data = await res.json();
+        const suggestion = data.suggestion;
+
+        // Format challenge as a nice message
+        const challengeMessage = `🎯 I've created a personalized challenge for you!\n\n**${suggestion.title}**\n\n${suggestion.description}\n\n📋 Steps:\n${suggestion.steps.map((step: string, i: number) => `${i + 1}. ${step}`).join('\n')}\n\n⭐ Difficulty: ${suggestion.difficulty}\n🏆 Reward: ${suggestion.engagementPoints} points\n⏱️ Estimated time: ${suggestion.estimatedDuration}h\n\nWould you like me to add this to your active challenges?`;
+
+        const aiMessage: Message = {
+          id: Date.now().toString(),
+          role: "assistant",
+          content: challengeMessage,
+          timestamp: Date.now(),
+          challengeSuggestion: suggestion,
+        };
+        setMessages((prev) => [...prev, aiMessage]);
+        setIsLoading(false);
+        return;
       }
 
+      // Regular chat for other actions
+      const res = await fetch("/api/smart-advisor/chat", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          message: actionLabel,
+          userId: user?.id,
+        }),
+        credentials: "include",
+      });
+
+      if (!res.ok) {
+        throw new Error("Failed to get AI response");
+      }
+
+      const data = await res.json();
+      
       const aiMessage: Message = {
         id: Date.now().toString(),
         role: "assistant",
-        content: response,
-        timestamp: new Date(),
+        content: data.response,
+        timestamp: Date.now(),
       };
       setMessages((prev) => [...prev, aiMessage]);
-    }, 1000);
+    } catch (error) {
+      console.error("Quick action error:", error);
+      
+      // Fallback message
+      const aiMessage: Message = {
+        id: Date.now().toString(),
+        role: "assistant",
+        content: "I'm analyzing your request. This feature is being enhanced!",
+        timestamp: Date.now(),
+      };
+      setMessages((prev) => [...prev, aiMessage]);
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   const handleSendMessage = async () => {
-    if (!input.trim()) return;
+    if (!input.trim() || !user?.id) return;
 
     const userMessage: Message = {
       id: Date.now().toString(),
       role: "user",
       content: input,
-      timestamp: new Date(),
+      timestamp: Date.now(),
     };
 
     setMessages((prev) => [...prev, userMessage]);
     setInput("");
     setIsLoading(true);
 
-    // Placeholder AI response
-    setTimeout(() => {
+    try {
+      // Call the Smart Advisor chat API
+      const res = await fetch("/api/smart-advisor/chat", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          message: input,
+          userId: user.id,
+        }),
+        credentials: "include",
+      });
+
+      if (!res.ok) {
+        throw new Error("Failed to get AI response");
+      }
+
+      const data = await res.json();
+      
       const aiMessage: Message = {
         id: (Date.now() + 1).toString(),
         role: "assistant",
-        content: "Thanks for your message! I'm currently learning how to better assist you. Full conversational AI is coming soon!",
-        timestamp: new Date(),
+        content: data.response,
+        timestamp: Date.now(),
+      };
+      
+      setMessages((prev) => [...prev, aiMessage]);
+    } catch (error) {
+      console.error("Chat error:", error);
+      
+      // Fallback message on error
+      const aiMessage: Message = {
+        id: (Date.now() + 1).toString(),
+        role: "assistant",
+        content: "I'm having trouble connecting right now. Please try again in a moment!",
+        timestamp: Date.now(),
       };
       setMessages((prev) => [...prev, aiMessage]);
+    } finally {
       setIsLoading(false);
-    }, 1500);
+    }
+  };
+
+  const handleConfirmChallenge = async (challenge: ChallengeSuggestion, messageId: string) => {
+    if (!user?.id) return;
+
+    setConfirmingChallenge(true);
+    try {
+      const res = await fetch("/api/smart-advisor/create-challenge", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          userId: user.id,
+          challenge,
+        }),
+        credentials: "include",
+      });
+
+      if (!res.ok) throw new Error("Failed to create challenge");
+
+      const data = await res.json();
+
+      // Invalidate challenges cache to trigger immediate refetch
+      queryClient.invalidateQueries({ queryKey: ["/api/user", user.id, "challenges", "active"] });
+
+      // Add confirmation message
+      const confirmMessage: Message = {
+        id: Date.now().toString(),
+        role: "assistant",
+        content: `✅ Perfect! I've added "${challenge.title}" to your active challenges. You can find it in the Challenges tab. Good luck! 🎯`,
+        timestamp: Date.now(),
+      };
+      setMessages((prev) => [...prev, confirmMessage]);
+
+      // Remove the challenge suggestion from the original message
+      setMessages((prev) =>
+        prev.map((msg) =>
+          msg.id === messageId ? { ...msg, challengeSuggestion: undefined } : msg
+        )
+      );
+    } catch (error) {
+      console.error("Challenge creation error:", error);
+      const errorMessage: Message = {
+        id: Date.now().toString(),
+        role: "assistant",
+        content: "Sorry, I couldn't create that challenge right now. Please try again!",
+        timestamp: Date.now(),
+      };
+      setMessages((prev) => [...prev, errorMessage]);
+    } finally {
+      setConfirmingChallenge(false);
+    }
   };
 
   const getInitials = (name: string) => {
@@ -178,8 +323,30 @@ export default function AIChat() {
               }`}
             >
               <p className="text-sm whitespace-pre-wrap">{message.content}</p>
+              
+              {/* Show Confirm Challenge button if this message has challenge data */}
+              {message.role === "assistant" && message.challengeSuggestion && (
+                <Button
+                  onClick={() => handleConfirmChallenge(message.challengeSuggestion!, message.id)}
+                  disabled={confirmingChallenge}
+                  className="mt-3 w-full"
+                  variant={confirmingChallenge ? "outline" : "default"}
+                >
+                  {confirmingChallenge ? (
+                    <>
+                      <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                      Creating Challenge...
+                    </>
+                  ) : (
+                    <>
+                      ✅ Accept Challenge
+                    </>
+                  )}
+                </Button>
+              )}
+              
               <span className="text-xs opacity-70 mt-1 block">
-                {message.timestamp.toLocaleTimeString([], {
+                {new Date(message.timestamp).toLocaleTimeString([], {
                   hour: "2-digit",
                   minute: "2-digit",
                 })}

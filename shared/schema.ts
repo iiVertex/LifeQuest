@@ -11,17 +11,17 @@ export const users = pgTable("users", {
   name: text("name"),
   email: text("email").unique(),
   avatar: text("avatar"),
-  level: integer("level").default(1),
-  xp: integer("xp").default(0),
-  xpToNextLevel: integer("xp_to_next_level").default(100),
+  age: integer("age"),
+  gender: text("gender"),
+  lifeProtectionScore: integer("life_protection_score").default(0), // Simple 0-100 score
   streak: integer("streak").default(0),
   lastActiveDate: timestamp("last_active_date"),
   focusAreas: jsonb("focus_areas").$type<string[]>().default([]),
+  advisorTone: text("advisor_tone"),
   preferences: jsonb("preferences").$type<{
     theme: "light" | "dark";
     notifications: boolean;
-    aiTone: "strict" | "balanced" | "soft";
-  }>().default({ theme: "light", notifications: true, aiTone: "balanced" }),
+  }>().default({ theme: "light", notifications: true }),
   createdAt: timestamp("created_at").default(sql`now()`),
   updatedAt: timestamp("updated_at").default(sql`now()`),
 });
@@ -32,8 +32,8 @@ export const challengeTemplates = pgTable("challenge_templates", {
   title: text("title").notNull(),
   description: text("description"),
   insuranceCategory: text("insurance_category").notNull(), // "motor", "health", "travel", "home", "life"
-  difficulty: text("difficulty").notNull(), // "beginner", "intermediate", "advanced"
-  engagementPoints: integer("engagement_points").notNull(),
+  difficulty: text("difficulty").notNull(), // "Easy" (+5), "Medium" (+10), "Hard" (+15)
+  engagementPoints: integer("engagement_points").notNull(), // Direct score increase amount
   estimatedDuration: integer("estimated_duration"), // in hours
   requirements: jsonb("requirements").$type<{
     steps: string[];
@@ -116,24 +116,16 @@ export const smartAdvisorInteractions = pgTable("smart_advisor_interactions", {
   createdAt: timestamp("created_at").default(sql`now()`),
 });
 
-// ProtectionScore tracking (replaces life_scores)
-export const protectionScores = pgTable("protection_scores", {
-  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
-  userId: varchar("user_id").notNull().references(() => users.id),
-  category: text("category").notNull(), // "motor", "health", "travel", "home", "overall"
-  score: real("score").notNull(), // 0-100
-  factors: jsonb("factors").$type<{ activePolicies: number; engagement: number; productDiversity: number }>().default({ activePolicies: 0, engagement: 0, productDiversity: 0 }),
-  calculatedAt: timestamp("calculated_at").default(sql`now()`),
-});
-
-// Schema validation
 // Schema validation
 export const insertUserSchema = createInsertSchema(users).pick({
   username: true,
   password: true,
   name: true,
   email: true,
+  age: true,
+  gender: true,
   focusAreas: true,
+  advisorTone: true,
 });
 
 export const insertUserChallengeSchema = createInsertSchema(userChallenges).pick({
@@ -165,4 +157,3 @@ export type UserSkillNode = typeof userSkillNodes.$inferSelect;
 export type Milestone = typeof milestones.$inferSelect;
 export type UserMilestone = typeof userMilestones.$inferSelect;
 export type SmartAdvisorInteraction = typeof smartAdvisorInteractions.$inferSelect;
-export type ProtectionScore = typeof protectionScores.$inferSelect;
