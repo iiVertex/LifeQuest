@@ -6,6 +6,11 @@ import authRoutes from "./auth/routes";
 import { generateStructuredResponse } from "./ai/client";
 
 export async function registerRoutes(app: Express): Promise<Server> {
+  // Health check route
+  app.get("/", (req, res) => {
+    res.json({ status: "ok", message: "LifeQuest API is running" });
+  });
+
   // Authentication routes
   app.use("/api/auth", authRoutes);
 
