@@ -6,8 +6,8 @@ import authRoutes from "./auth/routes";
 import { generateStructuredResponse } from "./ai/client";
 
 export async function registerRoutes(app: Express): Promise<Server> {
-  // Health check route
-  app.get("/", (req, res) => {
+  // Health check route (only for production/API calls, not dev mode)
+  app.get("/health", (req, res) => {
     res.json({ status: "ok", message: "LifeQuest API is running" });
   });
 

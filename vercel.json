@@ -1,4 +1,6 @@
 {
+  "buildCommand": "VERCEL=true npm run build",
+  "outputDirectory": "dist",
   "rewrites": [
     {
       "source": "/(.*)",
