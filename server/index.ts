@@ -68,22 +68,18 @@ export default app;
 // For Render or local development
 if (!process.env.VERCEL) {
   (async () => {
-    const server = registerRoutes(app);
+    const server = await registerRoutes(app);
 
     // Only serve static files in development (Vercel/Render don't need this)
     if (app.get("env") === "development") {
-      await setupVite(app, server as any);
+      await setupVite(app, server);
     }
     // Don't serve static files in production - frontend is on Vercel
 
     const port = parseInt(process.env.PORT || '5000', 10);
     const host = process.env.RENDER ? '0.0.0.0' : (process.env.HOST || "127.0.0.1");
     
-    (server as any).listen({
-      port,
-      host,
-      reusePort: false,
-    }, () => {
+    server.listen(port, host, () => {
       log(`serving on http://${host}:${port}`);
       initializeJobs();
     });
@@ -91,7 +87,7 @@ if (!process.env.VERCEL) {
     process.on('SIGTERM', () => {
       log('SIGTERM signal received: closing HTTP server');
       shutdownJobs();
-      (server as any).close(() => {
+      server.close(() => {
         log('HTTP server closed');
       });
     });
