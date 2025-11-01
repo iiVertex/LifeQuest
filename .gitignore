@@ -10,3 +10,5 @@ vite.config.ts.*
 *.log
 .local
 *.backup
+.env.production
+tasks.txt
