@@ -1,0 +1,10 @@
+→ Multi select
+→ Add Arabic Language.
+→ Replace the social tab with Rewards tab that are redeemable (points → QIC coins).
+→ Also in the rewards section add a friends thing where you can invite & you get certain points. (Referral)
+→ Make the friends option so you can compare your points with friends.
+→ Bundle & save…
+→ Add a decline message for the AI challenge
+→ Cross-conversion system
+→ Fix sign up (wait I think it works why hwy)
+→ If there are no AI challenges there should be a button that says “suggest a challenge”

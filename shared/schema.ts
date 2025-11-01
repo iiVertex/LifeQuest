@@ -13,6 +13,7 @@ export const users = pgTable("users", {
   avatar: text("avatar"),
   age: integer("age"),
   gender: text("gender"),
+  language: text("language").default("en"), // "en" or "ar"
   lifeProtectionScore: integer("life_protection_score").default(0), // Simple 0-100 score
   streak: integer("streak").default(0),
   lastActiveDate: timestamp("last_active_date"),
@@ -124,6 +125,7 @@ export const insertUserSchema = createInsertSchema(users).pick({
   email: true,
   age: true,
   gender: true,
+  language: true,
   focusAreas: true,
   advisorTone: true,
 });

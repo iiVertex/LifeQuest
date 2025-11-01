@@ -5,15 +5,19 @@ import { Label } from "@/components/ui/label";
 import { Progress } from "@/components/ui/progress";
 import { Card } from "@/components/ui/card";
 import { ProgressRing } from "@/components/progress-ring";
-import { Loader2, Eye, EyeOff, CheckCircle2, XCircle, Shield, Car, Heart, Plane, Home, Users, Trophy, Target, Sparkles } from "lucide-react";
+import { Loader2, Eye, EyeOff, CheckCircle2, XCircle, Shield, Car, Heart, Plane, Home, Users, Trophy, Target, Sparkles, Languages } from "lucide-react";
 import { supabase } from "@/lib/supabase";
 import { useLocation } from "wouter";
+import { useTranslation } from "@/lib/translation-provider";
+import GB from 'country-flag-icons/react/3x2/GB';
+import SA from 'country-flag-icons/react/3x2/SA';
 
 export default function Signup() {
   const [, setLocation] = useLocation();
+  const { language, setLanguage: setGlobalLanguage, t, dir } = useTranslation();
   const [step, setStep] = useState(0);
 
-  // Step 1: Name, Age, Gender
+  // Step 1: Name, Age, Gender, and Language
   const [name, setName] = useState("");
   const [age, setAge] = useState("");
   const [gender, setGender] = useState("");
@@ -24,8 +28,8 @@ export default function Signup() {
   const [confirmPassword, setConfirmPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
 
-  // Step 2: Insurance Priority
-  const [insurancePriority, setInsurancePriority] = useState("");
+  // Step 3: Insurance Priority (MULTI-SELECT)
+  const [insurancePriority, setInsurancePriority] = useState<string[]>([]);
   
   // Advisor Tone
   const [advisorTone, setAdvisorTone] = useState("balanced");
@@ -33,12 +37,17 @@ export default function Signup() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
 
+  const languages = [
+    { id: "en", label: "English", FlagComponent: GB },
+    { id: "ar", label: "العربية", FlagComponent: SA },
+  ];
+
   const insuranceOptions = [
-    { id: "motor", label: "Motor", icon: Car, color: "text-blue-500" },
-    { id: "health", label: "Health", icon: Heart, color: "text-red-500" },
-    { id: "travel", label: "Travel", icon: Plane, color: "text-green-500" },
-    { id: "home", label: "Home", icon: Home, color: "text-orange-500" },
-    { id: "life", label: "Life", icon: Users, color: "text-purple-500" },
+    { id: "motor", label: "Motor", labelAr: "السيارات", icon: Car, color: "text-blue-500" },
+    { id: "health", label: "Health", labelAr: "الصحة", icon: Heart, color: "text-red-500" },
+    { id: "travel", label: "Travel", labelAr: "السفر", icon: Plane, color: "text-green-500" },
+    { id: "home", label: "Home", labelAr: "المنزل", icon: Home, color: "text-orange-500" },
+    { id: "life", label: "Life", labelAr: "الحياة", icon: Users, color: "text-purple-500" },
   ];
 
   const advisorTones = [
@@ -79,13 +88,12 @@ export default function Signup() {
             name,
             age: parseInt(age),
             gender,
-            focus_areas: [insurancePriority],
+            language,
+            focus_areas: insurancePriority,
             advisor_tone: advisorTone,
           },
         },
       });
-
-      if (authError) throw authError;
 
       // 2. Create user profile in our database (do this BEFORE checking email confirmation)
       const res = await fetch("/api/auth/register", {
@@ -98,8 +106,9 @@ export default function Signup() {
           email,
           age: parseInt(age),
           gender,
-          focusAreas: [insurancePriority],
-          insurancePriority,
+          language,
+          focusAreas: insurancePriority,
+          insurancePriority: insurancePriority[0] || "",
           advisorTone,
         }),
         credentials: "include",
@@ -133,27 +142,29 @@ export default function Signup() {
   const isStepValid = () => {
     switch (step) {
       case 0:
-        return true; // Welcome screen
+        return language.length > 0; // Language selection FIRST
       case 1:
-        return name.trim().length > 0 && age.trim().length > 0 && gender.length > 0;
+        return true; // Welcome screen
       case 2:
-        return insurancePriority.length > 0; // Insurance Categories
+        return name.trim().length > 0 && age.trim().length > 0 && gender.length > 0; // Name, Age, Gender
       case 3:
-        return advisorTone.length > 0; // Advisor Tone
+        return insurancePriority.length > 0; // Insurance Categories
       case 4:
-        return true; // Smart Advisor Setup
+        return advisorTone.length > 0; // Advisor Tone
       case 5:
-        return true; // First Challenge
+        return true; // Smart Advisor Setup
       case 6:
-        return true; // Protection Score
+        return true; // First Challenge
       case 7:
+        return true; // Protection Score
+      case 8:
         return email.trim().length > 0 && isPasswordValid; // Email & Password LAST
       default:
         return false;
     }
   };
 
-  const progress = ((step + 1) / 8) * 100;
+  const progress = ((step + 1) / 9) * 100;
 
   return (
     <div className="min-h-screen flex flex-col">
@@ -163,43 +174,92 @@ export default function Signup() {
 
       <div className="flex-1 flex items-center justify-center p-8">
         <div className="w-full max-w-md space-y-6">
-          {/* Step 0: Welcome Screen */}
+          {/* Step 0: Language Selection - FIRST! */}
           {step === 0 && (
             <>
-              <div className="text-center space-y-8 max-w-2xl mx-auto animate-in fade-in duration-500">
+              <div className="text-center space-y-6">
+                <div className="p-6 rounded-full bg-gradient-to-br from-primary/20 to-primary/5 w-24 h-24 mx-auto flex items-center justify-center">
+                  <Languages className="h-12 w-12 text-primary" />
+                </div>
+                <div>
+                  <h2 className="text-3xl font-bold mb-2">Choose Your Language</h2>
+                  <h2 className="text-3xl font-bold mb-4" dir="rtl">اختر لغتك</h2>
+                  <p className="text-muted-foreground">Select your preferred language</p>
+                  <p className="text-muted-foreground" dir="rtl">اختر لغتك المفضلة</p>
+                </div>
+                <div className="grid grid-cols-2 gap-4 max-w-md mx-auto mt-8">
+                  {languages.map((lang) => {
+                    const isSelected = language === lang.id;
+                    const FlagComponent = lang.FlagComponent;
+                    return (
+                      <div
+                        key={lang.id}
+                        onClick={() => {
+                          console.log('🖱️ CLICKED LANGUAGE:', lang.id);
+                          setGlobalLanguage(lang.id as "en" | "ar");
+                        }}
+                        className={`p-6 border-2 rounded-2xl cursor-pointer transition-all hover:scale-105 ${
+                          isSelected
+                            ? "border-primary bg-primary/10 shadow-xl"
+                            : "border-border hover:border-primary/50"
+                        }`}
+                      >
+                        <div className="flex flex-col items-center gap-3">
+                          <FlagComponent className="w-16 h-12 rounded shadow-md" />
+                          <span className="font-bold text-lg">{lang.label}</span>
+                          {isSelected && (
+                            <div className="h-6 w-6 rounded-full bg-primary flex items-center justify-center">
+                              <svg className="h-4 w-4 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                              </svg>
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            </>
+          )}
+
+          {/* Step 1: Welcome Screen */}
+          {step === 1 && (
+            <>
+              <div className="text-center space-y-8 max-w-2xl mx-auto animate-in fade-in duration-500" dir={dir}>
                 <div className="p-6 rounded-full bg-gradient-to-br from-primary/20 to-primary/5 w-32 h-32 mx-auto flex items-center justify-center">
                   <Shield className="h-16 w-16 text-primary animate-pulse" />
                 </div>
                 <div className="space-y-4">
                   <h1 className="text-4xl font-bold bg-gradient-to-r from-primary to-primary/60 bg-clip-text text-transparent">
-                    Welcome to QIC LifeQuest!
+                    {t('Welcome to QIC LifeQuest!', 'مرحبًا في QIC LifeQuest!')}
                   </h1>
-                  <p className="text-xl text-muted-foreground">Turn your insurance into a rewarding journey.</p>
+                  <p className="text-xl text-muted-foreground">{t('Turn your insurance into a rewarding journey.', 'حول تأمينك إلى رحلة مجزية.')}</p>
                 </div>
                 <Card className="p-6 bg-gradient-to-br from-primary/5 to-background border-primary/20">
                   <p className="text-lg mb-6 text-center">
-                    Earn points, unlock badges, and level up your Protection Score.
+                    {t('Earn points, unlock badges, and level up your Protection Score.', 'اكسب النقاط، وافتح الشارات، وارفع درجة حمايتك.')}
                   </p>
                   <div className="space-y-4 text-left">
                     <div className="flex items-start gap-3">
                       <Trophy className="h-5 w-5 text-primary mt-1 flex-shrink-0" />
                       <div>
-                        <h3 className="font-semibold">Earn Points</h3>
-                        <p className="text-sm text-muted-foreground">Complete challenges and earn engagement points</p>
+                        <h3 className="font-semibold">{t('Earn Points', 'اكسب النقاط')}</h3>
+                        <p className="text-sm text-muted-foreground">{t('Complete challenges and earn engagement points', 'أكمل التحديات واكسب نقاط المشاركة')}</p>
                       </div>
                     </div>
                     <div className="flex items-start gap-3">
                       <Target className="h-5 w-5 text-primary mt-1 flex-shrink-0" />
                       <div>
-                        <h3 className="font-semibold">Unlock Badges</h3>
-                        <p className="text-sm text-muted-foreground">Achieve milestones and collect rewards</p>
+                        <h3 className="font-semibold">{t('Unlock Badges', 'افتح الشارات')}</h3>
+                        <p className="text-sm text-muted-foreground">{t('Achieve milestones and collect rewards', 'حقق الإنجازات واجمع المكافآت')}</p>
                       </div>
                     </div>
                     <div className="flex items-start gap-3">
                       <Shield className="h-5 w-5 text-primary mt-1 flex-shrink-0" />
                       <div>
-                        <h3 className="font-semibold">Level Up Protection</h3>
-                        <p className="text-sm text-muted-foreground">Boost your Protection Score and unlock tiers</p>
+                        <h3 className="font-semibold">{t('Level Up Protection', 'ارفع مستوى الحماية')}</h3>
+                        <p className="text-sm text-muted-foreground">{t('Boost your Protection Score and unlock tiers', 'عزز درجة حمايتك وافتح المستويات')}</p>
                       </div>
                     </div>
                   </div>
@@ -208,67 +268,82 @@ export default function Signup() {
             </>
           )}
 
-          {/* Step 1: Name, Age, Gender */}
-          {step === 1 && (
+          {/* Step 2: Name, Age, Gender */}
+          {step === 2 && (
             <>
-              <div className="text-center">
-                <h2 className="text-2xl font-bold">Tell us about yourself</h2>
-                <p className="text-muted-foreground mt-2">This helps us personalize your experience</p>
+              <div className="text-center" dir={dir}>
+                <h2 className="text-2xl font-bold">{t('Tell Us About Yourself', 'أخبرنا عن نفسك')}</h2>
+                <p className="text-muted-foreground mt-2">{t('This helps us personalize your experience', 'هذا يساعدنا على تخصيص تجربتك')}</p>
               </div>
-              <div className="space-y-4">
+              <div className="space-y-6" dir={dir}>
                 <div>
-                  <Label htmlFor="name">Name</Label>
+                  <Label htmlFor="name">{t('Name', 'الاسم')}</Label>
                   <Input
                     id="name"
                     value={name}
                     onChange={(e) => setName(e.target.value)}
-                    placeholder="Enter your name"
+                    placeholder={t('Enter your name', 'أدخل اسمك')}
                   />
                 </div>
+
                 <div>
-                  <Label htmlFor="age">Age</Label>
+                  <Label htmlFor="age">{t('Age', 'العمر')}</Label>
                   <Input
                     id="age"
                     type="number"
                     value={age}
                     onChange={(e) => setAge(e.target.value)}
-                    placeholder="Enter your age"
+                    placeholder={t('Enter your age', 'أدخل عمرك')}
                     min="13"
                     max="120"
                   />
                 </div>
+
                 <div>
-                  <Label htmlFor="gender">Gender</Label>
+                  <Label htmlFor="gender">{t('Gender', 'الجنس')}</Label>
                   <select
                     id="gender"
                     value={gender}
                     onChange={(e) => setGender(e.target.value)}
                     className="w-full px-3 py-2 border border-input bg-background rounded-md focus:outline-none focus:ring-2 focus:ring-primary"
                   >
-                    <option value="">Select gender</option>
-                    <option value="male">Male</option>
-                    <option value="female">Female</option>
+                    <option value="">{t('Select gender', 'اختر الجنس')}</option>
+                    <option value="male">{t('Male', 'ذكر')}</option>
+                    <option value="female">{t('Female', 'أنثى')}</option>
                   </select>
                 </div>
               </div>
             </>
           )}
 
-          {/* Step 2: Insurance Categories */}
-          {step === 2 && (
+          {/* Step 3: Insurance Categories */}
+          {step === 3 && (
             <>
-              <div className="text-center mb-8">
-                <h2 className="text-2xl font-bold">Which insurance matters most to you?</h2>
-                <p className="text-muted-foreground mt-2">We'll personalize your challenges</p>
+              <div className="text-center mb-8" dir={language === 'ar' ? 'rtl' : 'ltr'}>
+                <h2 className="text-2xl font-bold">{t('Which insurance matters most to you?', 'أي نوع تأمين يهمك أكثر؟')}</h2>
+                <p className="text-muted-foreground mt-2">{t("Choose all that apply", 'اختر كل ما ينطبق')}</p>
+                {insurancePriority.length > 0 && (
+                  <p className="text-sm text-primary mt-2">
+                    {t('Selected', 'المحدد')} ({insurancePriority.length}): {insurancePriority.map(id => insuranceOptions.find(o => o.id === id)?.[language === 'ar' ? 'labelAr' : 'label']).join(', ')}
+                  </p>
+                )}
               </div>
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4" dir={language === 'ar' ? 'rtl' : 'ltr'}>
                 {insuranceOptions.map((option) => {
                   const Icon = option.icon;
-                  const isSelected = insurancePriority === option.id;
+                  const isSelected = insurancePriority.includes(option.id);
                   return (
                     <Card
                       key={option.id}
-                      onClick={() => setInsurancePriority(option.id)}
+                      onClick={() => {
+                        console.log('🎯 Clicked insurance:', option.id, 'Current:', insurancePriority);
+                        // Multi-select: toggle selection
+                        if (isSelected) {
+                          setInsurancePriority(insurancePriority.filter(id => id !== option.id));
+                        } else {
+                          setInsurancePriority([...insurancePriority, option.id]);
+                        }
+                      }}
                       className={`p-6 cursor-pointer transition-all hover:scale-105 ${
                         isSelected ? "border-primary bg-primary/5 shadow-lg" : "hover:border-primary/50"
                       }`}
@@ -278,7 +353,7 @@ export default function Signup() {
                           <Icon className="h-6 w-6" />
                         </div>
                         <div className="flex-1">
-                          <h3 className="font-semibold">{option.label}</h3>
+                          <h3 className="font-semibold">{language === 'ar' ? option.labelAr : option.label}</h3>
                         </div>
                         {isSelected && (
                           <div className="h-6 w-6 rounded-full bg-primary flex items-center justify-center">
@@ -295,8 +370,8 @@ export default function Signup() {
             </>
           )}
 
-          {/* Step 3: Advisor Tone */}
-          {step === 3 && (
+          {/* Step 4: Advisor Tone */}
+          {step === 4 && (
             <>
               <div className="text-center mb-8">
                 <h2 className="text-2xl font-bold">How should your Smart Advisor communicate?</h2>
@@ -333,8 +408,8 @@ export default function Signup() {
             </>
           )}
 
-          {/* Step 4: Smart Advisor Setup */}
-          {step === 4 && (
+          {/* Step 5: Smart Advisor Setup */}
+          {step === 5 && (
             <>
               <div className="max-w-xl mx-auto space-y-8 text-center">
                 <div className="p-8 rounded-full bg-gradient-to-br from-primary/20 to-primary/5 w-40 h-40 mx-auto flex items-center justify-center animate-pulse">
@@ -352,8 +427,8 @@ export default function Signup() {
             </>
           )}
 
-          {/* Step 5: First Challenge */}
-          {step === 5 && (
+          {/* Step 6: First Challenge */}
+          {step === 6 && (
             <>
               <div className="text-center mb-6">
                 <h2 className="text-2xl font-bold mb-3">Your First Challenge Unlocked! 🎯</h2>
@@ -390,8 +465,8 @@ export default function Signup() {
             </>
           )}
 
-          {/* Step 6: Protection Score */}
-          {step === 6 && (
+          {/* Step 7: Protection Score */}
+          {step === 7 && (
             <>
               <div className="max-w-xl mx-auto space-y-8 text-center">
                 <div className="space-y-4">
@@ -441,8 +516,8 @@ export default function Signup() {
             </>
           )}
 
-          {/* Step 7: Email & Password (FINAL STEP) */}
-          {step === 7 && (
+          {/* Step 8: Email & Password (FINAL STEP) */}
+          {step === 8 && (
             <>
               <div className="text-center mb-8">
                 <h2 className="text-2xl font-bold">Create Your Account</h2>
@@ -503,16 +578,16 @@ export default function Signup() {
         </div>
       </div>
 
-      <div className="p-8 flex justify-between items-center max-w-2xl mx-auto w-full">
+      <div className="p-8 flex justify-between items-center max-w-2xl mx-auto w-full" dir={dir}>
         {step > 0 && (
           <Button variant="outline" onClick={() => setStep(step - 1)} disabled={loading}>
-            Back
+            {t('Back', 'رجوع')}
           </Button>
         )}
         <div className="flex-1" />
         <Button
           onClick={() => {
-            if (step < 7) {
+            if (step < 8) {
               setStep(step + 1);
             } else {
               handleSignup();
@@ -523,20 +598,20 @@ export default function Signup() {
           {loading ? (
             <>
               <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-              Creating account...
+              {t('Creating account...', 'جاري إنشاء الحساب...')}
             </>
-          ) : step === 7 ? (
-            "Get Started"
+          ) : step === 8 ? (
+            t('Get Started', 'ابدأ الآن')
           ) : (
-            "Continue"
+            t('Continue', 'متابعة')
           )}
         </Button>
       </div>
 
-      <div className="text-center pb-4 text-sm">
-        Already have an account?{" "}
+      <div className="text-center pb-4 text-sm" dir={dir}>
+        {t('Already have an account?', 'لديك حساب بالفعل؟')}{" "}
         <a href="/login" className="text-primary hover:underline">
-          Sign in
+          {t('Sign in', 'تسجيل الدخول')}
         </a>
       </div>
     </div>

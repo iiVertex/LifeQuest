@@ -1,19 +1,22 @@
 import { Home, Target, Users, User } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { useTranslation } from "@/lib/translation-provider";
 
 interface BottomNavProps {
   activeTab: string;
   onTabChange: (tab: string) => void;
 }
 
-const navItems = [
-  { id: "home", icon: Home, label: "Home" },
-  { id: "challenges", icon: Target, label: "Challenges" },
-  { id: "social", icon: Users, label: "Social" },
-  { id: "profile", icon: User, label: "Profile" },
-];
-
 export function BottomNav({ activeTab, onTabChange }: BottomNavProps) {
+  const { t } = useTranslation();
+  
+  const navItems = [
+    { id: "home", icon: Home, label: t("Home", "الرئيسية") },
+    { id: "challenges", icon: Target, label: t("Challenges", "التحديات") },
+    { id: "social", icon: Users, label: t("Social", "المجتمع") },
+    { id: "profile", icon: User, label: t("Profile", "الملف الشخصي") },
+  ];
+
   return (
     <nav
       className="fixed bottom-0 left-0 right-0 bg-card/95 backdrop-blur-sm border-t border-border shadow-lg"

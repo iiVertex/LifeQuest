@@ -24,11 +24,13 @@ import {
   Users,
   RefreshCw,
   Flame,
-  AlertCircle
+  AlertCircle,
+  Languages as LanguagesIcon
 } from "lucide-react";
 import { useUser, useActiveChallenges, useSmartAdvisorInteractions, useGenerateAutoMessage, useGenerateAIChallenge } from "@/hooks/use-api";
 import { useAuth } from "@/hooks/use-auth";
 import { useLocation } from "wouter";
+import { useTranslation } from "@/lib/translation-provider";
 
 const categoryIcons = {
   motor: <Car className="h-4 w-4" />,
@@ -41,6 +43,7 @@ const categoryIcons = {
 const tierConfig = {
   bronze: {
     name: "Bronze",
+    nameAr: "برونزي",
     color: "from-orange-600 to-orange-400",
     bgColor: "bg-orange-500/10",
     textColor: "text-orange-600",
@@ -51,6 +54,7 @@ const tierConfig = {
   },
   silver: {
     name: "Silver",
+    nameAr: "فضي",
     color: "from-gray-400 to-gray-300",
     bgColor: "bg-gray-400/10",
     textColor: "text-gray-600",
@@ -61,6 +65,7 @@ const tierConfig = {
   },
   gold: {
     name: "Gold",
+    nameAr: "ذهبي",
     color: "from-yellow-500 to-yellow-300",
     bgColor: "bg-yellow-500/10",
     textColor: "text-yellow-600",
@@ -71,6 +76,7 @@ const tierConfig = {
   },
   platinum: {
     name: "Platinum",
+    nameAr: "بلاتيني",
     color: "from-purple-600 to-purple-400",
     bgColor: "bg-purple-500/10",
     textColor: "text-purple-600",
@@ -91,6 +97,7 @@ const mockMilestones = [
 export default function Dashboard() {
   const { user: authUser } = useAuth();
   const [, setLocation] = useLocation();
+  const { t, dir, language, setLanguage } = useTranslation();
   const [selectedChallenge, setSelectedChallenge] = useState<any>(null);
   const [challengeDialogOpen, setChallengeDialogOpen] = useState(false);
   
@@ -221,17 +228,28 @@ export default function Dashboard() {
   const TierIcon = tier.icon;
 
   return (
-    <div className="min-h-screen pb-24 bg-gradient-to-b from-background to-muted/20" data-testid="page-dashboard">
+    <div className="min-h-screen pb-24 bg-gradient-to-b from-background to-muted/20" data-testid="page-dashboard" dir={dir}>
       {/* Header */}
       <div className="bg-gradient-to-br from-primary/10 via-primary/5 to-background border-b">
         <div className="p-4 md:p-6 max-w-7xl mx-auto">
           <div className="flex items-center md:items-center justify-between gap-3">
             <div className="flex-1 min-w-0">
-              <h1 className="text-xl md:text-2xl font-bold leading-tight">Engagement Hub</h1>
-              <p className="text-sm md:text-sm text-muted-foreground truncate">Welcome back, {user?.name || "User"}!</p>
+              <h1 className="text-xl md:text-2xl font-bold leading-tight">{t('Engagement Hub', 'مركز التفاعل')}</h1>
+              <p className="text-sm md:text-sm text-muted-foreground truncate">{t('Welcome back', 'مرحباً بعودتك')}, {user?.name || t("User", "المستخدم")}!</p>
             </div>
             
             <div className="flex flex-col md:flex-row items-end md:items-center gap-2 md:gap-4 flex-shrink-0">
+              {/* Language Toggle */}
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setLanguage(language === 'en' ? 'ar' : 'en')}
+                className="h-8 px-2"
+              >
+                <LanguagesIcon className="h-4 w-4 mr-1" />
+                <span className="text-xs">{language === 'en' ? 'AR' : 'EN'}</span>
+              </Button>
+              
               <div className="flex items-center gap-1.5 bg-gradient-to-r from-orange-500/10 to-red-500/10 border border-orange-500/20 rounded-md px-2.5 py-1.5">
                 <Flame className="h-4 w-4 text-orange-500" />
                 <span className="text-sm font-bold text-orange-600 dark:text-orange-400">{user?.streak || 0}</span>
@@ -239,7 +257,7 @@ export default function Dashboard() {
               
               <Badge className={`${tier.bgColor} ${tier.textColor} border ${tier.borderColor} px-3 py-1.5 md:px-4 md:py-2 text-xs md:text-sm`}>
                 <TierIcon className="h-4 w-4 mr-1.5 md:mr-2" />
-                {tier.name} Tier
+                {language === 'ar' ? (tier.nameAr || tier.name) : tier.name} {t('Tier', 'مستوى')}
               </Badge>
             </div>
           </div>

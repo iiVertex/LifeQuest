@@ -173,6 +173,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Get all users (for debugging)
+  app.get("/api/users/all", async (req, res) => {
+    try {
+      const users = await storage.getAllUsers();
+      res.json(users);
+    } catch (error) {
+      console.error("Error fetching all users:", error);
+      res.status(500).json({ message: "Failed to fetch users" });
+    }
+  });
+
   app.post("/api/user", async (req, res) => {
     try {
       const validatedData = insertUserSchema.parse(req.body);
@@ -545,20 +556,25 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }, {});
 
       // Build COMPREHENSIVE system prompt with ALL user data
+      const userLanguage = (user as any).language || 'en';
+      const userFocusAreas = (user as any).focusAreas || [];
+      
       const systemPrompt = `You are QIC's Smart Advisor, an AI insurance expert helping users build their Life Protection Score.
+
+${userLanguage === 'ar' ? 'IMPORTANT: Respond in Arabic (العربية).' : 'IMPORTANT: Respond in English.'}
 
 COMPLETE USER PROFILE:
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 Name: ${user.name || user.username}
 Email: ${user.email}
+Language: ${userLanguage === 'ar' ? 'Arabic' : 'English'}
+Focus Areas: ${userFocusAreas.length > 0 ? userFocusAreas.join(', ') : 'Not specified'}
 
 PROTECTION STATUS:
 • Life Protection Score: ${lifeProtectionScore}/100 (${protectionLevel} Level 💎)
 • Current Streak: ${currentStreak} days 🔥
 • Total Challenges Completed: ${completedChallenges.length}
 • Active Challenges: ${activeChallenges.length}
-
-FOCUS AREAS: ${user.focusAreas?.join(', ') || 'motor, health, travel'}
 
 CHALLENGE HISTORY BY CATEGORY:
 ${Object.entries(challengesByCategory).map(([cat, count]) => `• ${cat}: ${count} completed`).join('\n') || '• No challenges completed yet'}
@@ -572,7 +588,7 @@ YOUR ROLE:
 - Provide insights about their protection status
 - Rate their profile based on ACTUAL data above
 - Answer questions about their statistics
-- Suggest improvements based on their focus areas
+- Suggest improvements based on their focus areas (${userFocusAreas.join(', ') || 'all insurance types'})
 - Be ${(user as any).advisor_tone || 'balanced'} in tone
 - Reference their REAL data (don't make up numbers)
 - Keep responses concise but informative (3-4 sentences)

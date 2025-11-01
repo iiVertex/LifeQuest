@@ -5,9 +5,11 @@ import { Label } from "@/components/ui/label";
 import { Loader2, Eye, EyeOff } from "lucide-react";
 import { supabase } from "@/lib/supabase";
 import { useLocation } from "wouter";
+import { useTranslation } from "@/lib/translation-provider";
 
 export default function Login() {
   const [, setLocation] = useLocation();
+  const { t, dir } = useTranslation();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
@@ -59,35 +61,35 @@ export default function Login() {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center p-4">
+    <div className="min-h-screen flex items-center justify-center p-4" dir={dir}>
       <div className="w-full max-w-md space-y-8">
         <div className="text-center">
-          <h1 className="text-3xl font-bold">Welcome Back</h1>
-          <p className="text-muted-foreground mt-2">Sign in to your account</p>
+          <h1 className="text-3xl font-bold">{t('Welcome Back', 'مرحباً بعودتك')}</h1>
+          <p className="text-muted-foreground mt-2">{t('Sign in to your account', 'سجل الدخول إلى حسابك')}</p>
         </div>
 
         <form onSubmit={handleLogin} className="space-y-4">
           <div>
-            <Label htmlFor="email">Email</Label>
+            <Label htmlFor="email">{t('Email', 'البريد الإلكتروني')}</Label>
             <Input
               id="email"
               type="email"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
-              placeholder="your@email.com"
+              placeholder={t('your@email.com', 'بريدك@الإلكتروني.com')}
               required
             />
           </div>
 
           <div>
-            <Label htmlFor="password">Password</Label>
+            <Label htmlFor="password">{t('Password', 'كلمة المرور')}</Label>
             <div className="relative">
               <Input
                 id="password"
                 type={showPassword ? "text" : "password"}
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
-                placeholder="Enter your password"
+                placeholder={t('Enter your password', 'أدخل كلمة المرور')}
                 required
               />
               <button
@@ -108,18 +110,18 @@ export default function Login() {
             {loading ? (
               <>
                 <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                Signing in...
+                {t('Signing in...', 'جاري تسجيل الدخول...')}
               </>
             ) : (
-              "Sign In"
+              t('Sign In', 'تسجيل الدخول')
             )}
           </Button>
         </form>
 
         <div className="text-center text-sm">
-          Don't have an account?{" "}
+          {t("Don't have an account?", 'ليس لديك حساب؟')}{" "}
           <a href="/signup" className="text-primary hover:underline">
-            Sign up
+            {t('Sign up', 'إنشاء حساب')}
           </a>
         </div>
       </div>
