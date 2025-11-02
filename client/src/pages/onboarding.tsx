@@ -219,116 +219,139 @@ export default function Onboarding({ onComplete }: OnboardingProps) {
 
       case 4:
         return (
-          <div className="max-w-xl mx-auto space-y-8" dir={language === 'ar' ? 'rtl' : 'ltr'}>
-            <div className="text-center mb-6">
-              <h2 className="text-3xl font-bold mb-3">
-                {t('Your First Challenge Unlocked! 🎯', 'تم فتح تحديك الأول! 🎯')}
-              </h2>
-              <p className="text-muted-foreground">
-                {t('Complete this to start earning points', 'أكمل هذا لبدء كسب النقاط')}
-              </p>
-            </div>
-            <Card className="p-6 border-2 border-primary shadow-lg">
-              <div className="space-y-4">
-                <div className="flex items-start justify-between gap-4">
-                  <div className="flex items-center gap-3">
-                    <div className="p-3 rounded-full bg-primary/10 flex-shrink-0">
-                      <Car className="h-6 w-6 text-primary" />
-                    </div>
-                    <div>
-                      <h3 className="font-bold text-lg">
-                        {t('Renew Your Motor Policy Early', 'جدد وثيقة السيارة مبكراً')}
-                      </h3>
-                      <p className="text-sm text-muted-foreground">
-                        {t('Complete before expiry', 'أكمل قبل الانتهاء')}
-                      </p>
-                    </div>
-                  </div>
-                  <div className={`text-right flex-shrink-0 ${language === 'ar' ? 'text-left' : ''}`}>
-                    <div className="text-2xl font-bold text-primary">+50</div>
-                    <div className="text-xs text-muted-foreground">{t('Points', 'نقاط')}</div>
-                  </div>
-                </div>
-                <div className="pt-4 border-t">
-                  <div className="flex items-center gap-2 text-sm text-muted-foreground mb-3">
-                    <Trophy className="h-4 w-4" />
-                    <span>{t('Unlock: Car Wash Voucher', 'فتح: قسيمة غسيل سيارة')}</span>
-                  </div>
-                  <Button className="w-full" size="lg">
-                    {t('Start Challenge', 'ابدأ التحدي')}
-                  </Button>
-                </div>
-              </div>
-            </Card>
-          </div>
-        );
-
-      case 5:
-        return (
-          <div className="max-w-xl mx-auto space-y-8 text-center" dir={language === 'ar' ? 'rtl' : 'ltr'}>
+          <div className="max-w-2xl mx-auto space-y-8 text-center" dir={language === 'ar' ? 'rtl' : 'ltr'}>
             <div className="space-y-4">
               <h2 className="text-3xl font-bold mb-3">
-                {t('Your Protection Score', 'درجة الحماية الخاصة بك')}
+                {t('Your Protection Journey', 'رحلة الحماية الخاصة بك')}
               </h2>
               <p className="text-muted-foreground">
-                {t('Track how well-protected you are', 'تتبع مدى حمايتك')}
+                {t('Build your Protection Points and climb the tiers', 'اجمع نقاط الحماية واصعد المستويات')}
               </p>
             </div>
-            <div className="flex justify-center my-8">
-              <ProgressRing progress={42} size={200} strokeWidth={20} />
-            </div>
+
+            {/* Current Status */}
             <Card className="p-6 bg-gradient-to-br from-orange-500/10 to-background border-orange-500/20">
-              <div className="space-y-4">
+              <div className="space-y-3">
                 <div className="flex items-center justify-center gap-2">
-                  <Shield className="h-6 w-6 text-orange-500" />
-                  <h3 className="text-2xl font-bold">
-                    {t("You're 42% covered", 'أنت محمي بنسبة 42٪')}
-                  </h3>
-                </div>
-                <p className="text-muted-foreground">
-                  {t('Complete challenges to boost your score!', 'أكمل التحديات لزيادة نقاطك!')}
-                </p>
-                <div className="grid grid-cols-4 gap-2 pt-4 border-t">
+                  <Shield className="h-8 w-8 text-orange-500" />
                   <div className="text-center">
-                    <div className="text-xs text-muted-foreground mb-1">
-                      {t('Bronze', 'برونز')}
-                    </div>
-                    <div className="h-2 bg-orange-500 rounded" />
-                    <div className="text-xs font-semibold mt-1">0-49</div>
+                    <div className="text-4xl font-bold">0 PP</div>
+                    <div className="text-sm text-muted-foreground">{t('Protection Points', 'نقاط الحماية')}</div>
                   </div>
-                  <div className="text-center opacity-50">
-                    <div className="text-xs text-muted-foreground mb-1">
-                      {t('Silver', 'فضي')}
-                    </div>
-                    <div className="h-2 bg-gray-400 rounded" />
-                    <div className="text-xs font-semibold mt-1">50-69</div>
-                  </div>
-                  <div className="text-center opacity-50">
-                    <div className="text-xs text-muted-foreground mb-1">
-                      {t('Gold', 'ذهبي')}
-                    </div>
-                    <div className="h-2 bg-yellow-500 rounded" />
-                    <div className="text-xs font-semibold mt-1">70-89</div>
-                  </div>
-                  <div className="text-center opacity-50">
-                    <div className="text-xs text-muted-foreground mb-1">
-                      {t('Platinum', 'بلاتيني')}
-                    </div>
-                    <div className="h-2 bg-purple-500 rounded" />
-                    <div className="text-xs font-semibold mt-1">90-100</div>
+                </div>
+                <div className="flex items-center justify-center gap-2">
+                  <div className="px-4 py-2 bg-orange-500/20 border border-orange-500/30 rounded-full">
+                    <span className="text-orange-600 dark:text-orange-400 font-bold">
+                      🥉 {t('Bronze Tier', 'مستوى البرونز')}
+                    </span>
                   </div>
                 </div>
               </div>
             </Card>
-            <p className="text-sm text-muted-foreground pt-4">
-              {t('Ready to start your journey to Platinum protection? Let\'s go! 🚀', 'هل أنت مستعد لبدء رحلتك إلى الحماية البلاتينية؟ لنبدأ! 🚀')}
+
+            {/* Tier Progression */}
+            <div className="space-y-4">
+              <h3 className="font-bold text-lg">{t('Tier System', 'نظام المستويات')}</h3>
+              
+              {/* Bronze */}
+              <Card className="p-4 bg-gradient-to-br from-orange-500/10 to-background border-orange-500/30 shadow-lg">
+                <div className="flex items-center justify-between gap-4">
+                  <div className="flex items-center gap-3 flex-1">
+                    <div className="w-12 h-12 rounded-full bg-orange-500/20 flex items-center justify-center flex-shrink-0">
+                      <Shield className="h-6 w-6 text-orange-500" />
+                    </div>
+                    <div className={language === 'ar' ? 'text-right flex-1' : 'text-left flex-1'}>
+                      <div className="font-bold text-orange-600 dark:text-orange-400">
+                        {t('Bronze', 'برونزي')}
+                      </div>
+                      <div className="text-sm text-muted-foreground">0-249 PP</div>
+                    </div>
+                  </div>
+                  <div className="px-3 py-1 bg-orange-500/20 border border-orange-500/30 rounded-full text-xs font-semibold text-orange-600 dark:text-orange-400">
+                    {t('Current', 'الحالي')}
+                  </div>
+                </div>
+              </Card>
+
+              {/* Silver */}
+              <Card className="p-4 opacity-70 hover:opacity-100 transition-opacity">
+                <div className="flex items-center justify-between gap-4">
+                  <div className="flex items-center gap-3 flex-1">
+                    <div className="w-12 h-12 rounded-full bg-gray-400/20 flex items-center justify-center flex-shrink-0">
+                      <Trophy className="h-6 w-6 text-gray-500" />
+                    </div>
+                    <div className={language === 'ar' ? 'text-right flex-1' : 'text-left flex-1'}>
+                      <div className="font-bold text-gray-600 dark:text-gray-400">
+                        {t('Silver', 'فضي')}
+                      </div>
+                      <div className="text-sm text-muted-foreground">250-499 PP</div>
+                    </div>
+                  </div>
+                  <div className="text-right">
+                    <div className="text-lg font-bold text-primary">250 PP</div>
+                    <div className="text-xs text-muted-foreground">{t('to unlock', 'للفتح')}</div>
+                  </div>
+                </div>
+              </Card>
+
+              {/* Gold */}
+              <Card className="p-4 opacity-70 hover:opacity-100 transition-opacity">
+                <div className="flex items-center justify-between gap-4">
+                  <div className="flex items-center gap-3 flex-1">
+                    <div className="w-12 h-12 rounded-full bg-yellow-500/20 flex items-center justify-center flex-shrink-0">
+                      <Trophy className="h-6 w-6 text-yellow-500" />
+                    </div>
+                    <div className={language === 'ar' ? 'text-right flex-1' : 'text-left flex-1'}>
+                      <div className="font-bold text-yellow-600 dark:text-yellow-400">
+                        {t('Gold', 'ذهبي')}
+                      </div>
+                      <div className="text-sm text-muted-foreground">500-749 PP</div>
+                    </div>
+                  </div>
+                  <div className="text-right">
+                    <div className="text-lg font-bold text-primary">500 PP</div>
+                    <div className="text-xs text-muted-foreground">{t('to unlock', 'للفتح')}</div>
+                  </div>
+                </div>
+              </Card>
+
+              {/* Platinum */}
+              <Card className="p-4 opacity-70 hover:opacity-100 transition-opacity border-purple-500/20">
+                <div className="flex items-center justify-between gap-4">
+                  <div className="flex items-center gap-3 flex-1">
+                    <div className="w-12 h-12 rounded-full bg-purple-500/20 flex items-center justify-center flex-shrink-0">
+                      <Sparkles className="h-6 w-6 text-purple-500" />
+                    </div>
+                    <div className={language === 'ar' ? 'text-right flex-1' : 'text-left flex-1'}>
+                      <div className="font-bold text-purple-600 dark:text-purple-400">
+                        {t('Platinum', 'بلاتيني')}
+                      </div>
+                      <div className="text-sm text-muted-foreground">750-1000 PP</div>
+                    </div>
+                  </div>
+                  <div className="text-right">
+                    <div className="text-lg font-bold text-primary">750 PP</div>
+                    <div className="text-xs text-muted-foreground">{t('to unlock', 'للفتح')}</div>
+                  </div>
+                </div>
+              </Card>
+            </div>
+
+            <Card className="p-4 bg-primary/5 border-primary/20">
+              <p className="text-sm">
+                💡 {t('Complete daily challenges to earn Protection Points and climb the tiers!', 'أكمل التحديات اليومية لكسب نقاط الحماية والصعود عبر المستويات!')}
+              </p>
+            </Card>
+
+            <p className="text-sm text-muted-foreground pt-2">
+              {t('Ready to start your journey to Platinum? Let\'s go! 🚀', 'هل أنت مستعد لبدء رحلتك إلى البلاتين؟ لنبدأ! 🚀')}
             </p>
           </div>
         );
     }
   };
 
-  const totalSteps = 6;
+  const totalSteps = 5;
   const progress = ((step + 1) / totalSteps) * 100;
 
   const handleContinue = () => {
@@ -340,7 +363,7 @@ export default function Onboarding({ onComplete }: OnboardingProps) {
         language,
         focusAreas: selectedCategories,
         advisorTone: "balanced",
-        protectionScore: 42,
+        protectionScore: 0,
         tier: "bronze",
       });
     }

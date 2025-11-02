@@ -36,6 +36,7 @@ export default function AIChat() {
   const [input, setInput] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const [confirmingChallenge, setConfirmingChallenge] = useState(false);
+  const [regeneratingChallenge, setRegeneratingChallenge] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
   const scrollToBottom = () => {
@@ -92,6 +93,20 @@ export default function AIChat() {
         if (!res.ok) throw new Error("Failed to generate challenge");
 
         const data = await res.json();
+
+        // Check if daily limit is reached
+        if (data.limitReached) {
+          const aiMessage: Message = {
+            id: Date.now().toString(),
+            role: "assistant",
+            content: data.message,
+            timestamp: Date.now(),
+          };
+          setMessages((prev) => [...prev, aiMessage]);
+          setIsLoading(false);
+          return;
+        }
+
         const suggestion = data.suggestion;
 
         // Format challenge as a nice message
@@ -256,6 +271,89 @@ export default function AIChat() {
     }
   };
 
+  const handleDeclineChallenge = (messageId: string) => {
+    // Remove the challenge suggestion from the message
+    setMessages((prev) =>
+      prev.map((msg) =>
+        msg.id === messageId ? { ...msg, challengeSuggestion: undefined } : msg
+      )
+    );
+
+    // Add confirmation message
+    const confirmMessage: Message = {
+      id: Date.now().toString(),
+      role: "assistant",
+      content: "No problem! Let me know if you'd like a different challenge suggestion. 😊",
+      timestamp: Date.now(),
+    };
+    setMessages((prev) => [...prev, confirmMessage]);
+  };
+
+  const handleRegenerateChallenge = async (messageId: string) => {
+    if (!user?.id) return;
+
+    setRegeneratingChallenge(true);
+    try {
+      const res = await fetch("/api/smart-advisor/suggest-challenge", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          userId: user.id,
+          context: "Generate a different challenge - the previous one wasn't quite right for me"
+        }),
+        credentials: "include",
+      });
+
+      if (!res.ok) throw new Error("Failed to regenerate challenge");
+
+      const data = await res.json();
+
+      // Check if daily limit is reached
+      if (data.limitReached) {
+        const aiMessage: Message = {
+          id: Date.now().toString(),
+          role: "assistant",
+          content: data.message,
+          timestamp: Date.now(),
+        };
+        setMessages((prev) => [...prev, aiMessage]);
+        return;
+      }
+
+      const suggestion = data.suggestion;
+
+      // Remove the old challenge suggestion
+      setMessages((prev) =>
+        prev.map((msg) =>
+          msg.id === messageId ? { ...msg, challengeSuggestion: undefined } : msg
+        )
+      );
+
+      // Format new challenge as a nice message
+      const challengeMessage = `🔄 Here's a different challenge for you!\n\n**${suggestion.title}**\n\n${suggestion.description}\n\n📋 Steps:\n${suggestion.steps.map((step: string, i: number) => `${i + 1}. ${step}`).join('\n')}\n\n⭐ Difficulty: ${suggestion.difficulty}\n🏆 Reward: ${suggestion.engagementPoints} points\n⏱️ Estimated time: ${suggestion.estimatedDuration}h\n\nWould you like me to add this to your active challenges?`;
+
+      const aiMessage: Message = {
+        id: Date.now().toString(),
+        role: "assistant",
+        content: challengeMessage,
+        timestamp: Date.now(),
+        challengeSuggestion: suggestion,
+      };
+      setMessages((prev) => [...prev, aiMessage]);
+    } catch (error) {
+      console.error("Challenge regeneration error:", error);
+      const errorMessage: Message = {
+        id: Date.now().toString(),
+        role: "assistant",
+        content: "Sorry, I couldn't generate a new challenge right now. Please try again!",
+        timestamp: Date.now(),
+      };
+      setMessages((prev) => [...prev, errorMessage]);
+    } finally {
+      setConfirmingChallenge(false);
+    }
+  };
+
   const getInitials = (name: string) => {
     return name
       .split(" ")
@@ -324,25 +422,56 @@ export default function AIChat() {
             >
               <p className="text-sm whitespace-pre-wrap">{message.content}</p>
               
-              {/* Show Confirm Challenge button if this message has challenge data */}
+              {/* Show Challenge Action buttons if this message has challenge data */}
               {message.role === "assistant" && message.challengeSuggestion && (
-                <Button
-                  onClick={() => handleConfirmChallenge(message.challengeSuggestion!, message.id)}
-                  disabled={confirmingChallenge}
-                  className="mt-3 w-full"
-                  variant={confirmingChallenge ? "outline" : "default"}
-                >
-                  {confirmingChallenge ? (
-                    <>
-                      <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                      Creating Challenge...
-                    </>
-                  ) : (
-                    <>
-                      ✅ Accept Challenge
-                    </>
-                  )}
-                </Button>
+                <div className="mt-3 space-y-2">
+                  <Button
+                    onClick={() => handleConfirmChallenge(message.challengeSuggestion!, message.id)}
+                    disabled={confirmingChallenge || regeneratingChallenge}
+                    className="w-full"
+                    variant="default"
+                  >
+                    {confirmingChallenge ? (
+                      <>
+                        <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                        Creating Challenge...
+                      </>
+                    ) : (
+                      <>
+                        ✅ Accept Challenge
+                      </>
+                    )}
+                  </Button>
+                  
+                  <div className="grid grid-cols-2 gap-2">
+                    <Button
+                      onClick={() => handleRegenerateChallenge(message.id)}
+                      disabled={confirmingChallenge || regeneratingChallenge}
+                      className="w-full"
+                      variant="outline"
+                    >
+                      {regeneratingChallenge ? (
+                        <>
+                          <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                          Regenerating...
+                        </>
+                      ) : (
+                        <>
+                          🔄 Regenerate
+                        </>
+                      )}
+                    </Button>
+                    
+                    <Button
+                      onClick={() => handleDeclineChallenge(message.id)}
+                      disabled={confirmingChallenge || regeneratingChallenge}
+                      className="w-full"
+                      variant="outline"
+                    >
+                      ❌ Decline
+                    </Button>
+                  </div>
+                </div>
               )}
               
               <span className="text-xs opacity-70 mt-1 block">

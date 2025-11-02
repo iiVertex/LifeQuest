@@ -1,4 +1,4 @@
-import { Home, Target, Users, User } from "lucide-react";
+import { Home, Target, Gift, User } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useTranslation } from "@/lib/translation-provider";
 
@@ -13,7 +13,7 @@ export function BottomNav({ activeTab, onTabChange }: BottomNavProps) {
   const navItems = [
     { id: "home", icon: Home, label: t("Home", "الرئيسية") },
     { id: "challenges", icon: Target, label: t("Challenges", "التحديات") },
-    { id: "social", icon: Users, label: t("Social", "المجتمع") },
+    { id: "rewards", icon: Gift, label: t("Rewards", "المكافآت") },
     { id: "profile", icon: User, label: t("Profile", "الملف الشخصي") },
   ];
 

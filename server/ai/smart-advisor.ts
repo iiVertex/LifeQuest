@@ -17,6 +17,7 @@ export interface UserContext {
   engagementLevel: 'low' | 'medium' | 'high';
   tier: 'bronze' | 'silver' | 'gold' | 'platinum';
   streakDays: number;
+  language: 'en' | 'ar';
 }
 
 export interface SmartAdvisorResponse {
@@ -46,6 +47,7 @@ Your role:
 - Generate personalized challenges based on user's active policies and engagement
 - Suggest relevant insurance actions with clear rewards
 - Match the user's preferred communication tone (${context.preferredTone})
+- Respond in ${context.language === 'ar' ? 'Arabic' : 'English'} language
 - Focus on real insurance value, not just gamification
 
 Tone Guidelines:
@@ -130,9 +132,11 @@ export async function generateAdvisorNudge(
 User Stage: ${stage}
 Context: ${stageContext[stage]}
 Tone: ${context.preferredTone}
+Language: ${context.language === 'ar' ? 'Arabic' : 'English'}
 
 Generate a SHORT (1-2 sentences) ${messageTypes[stage]} message that:
 - Matches the ${context.preferredTone} tone
+- MUST be written in ${context.language === 'ar' ? 'Arabic' : 'English'}
 - References the user's protection score (${context.protectionScore}/100) or policies
 - Provides clear value and motivation
 - Feels personal and human, not corporate
@@ -178,31 +182,42 @@ Generate the ${messageTypes[stage]} message now.`;
  * Generate context summary for user (used in prompts)
  */
 export function buildUserContext(user: any, recentChallenges: any[] = []): UserContext {
-  const lastLogin = user.lastLogin ? Math.floor((Date.now() - new Date(user.lastLogin).getTime()) / (1000 * 60 * 60 * 24)) : 0;
+  // Handle both camelCase and snake_case field names from DB
+  const lastActiveDate = user.lastActiveDate || (user as any).last_active_date;
+  const lastLogin = lastActiveDate ? Math.floor((Date.now() - new Date(lastActiveDate).getTime()) / (1000 * 60 * 60 * 24)) : 0;
   
   // Determine engagement level based on recent activity
   const engagementLevel = 
     recentChallenges.length >= 5 ? 'high' :
     recentChallenges.length >= 2 ? 'medium' : 'low';
 
-  // Determine tier based on protection score
-  const protectionScore = user.protectionScore || 42;
+  // Use correct field name - lifeProtectionScore (or life_protection_score from DB)
+  const protectionScore = user.lifeProtectionScore ?? (user as any).life_protection_score ?? 0;
+  
+  // NEW TIER SYSTEM (0-1000 scale)
+  // Bronze: 0-249 (~1 month), Silver: 250-499 (~2 months), Gold: 500-749 (~3 months), Platinum: 750-1000 (~4 months)
   const tier = 
-    protectionScore >= 90 ? 'platinum' :
-    protectionScore >= 70 ? 'gold' :
-    protectionScore >= 50 ? 'silver' : 'bronze';
+    protectionScore >= 750 ? 'platinum' :
+    protectionScore >= 500 ? 'gold' :
+    protectionScore >= 250 ? 'silver' : 'bronze';
+
+  // Handle both camelCase and snake_case for focusAreas
+  const focusAreas = user.focusAreas || (user as any).focus_areas || ['motor'];
+  const advisorTone = user.advisorTone || (user as any).advisor_tone || 'balanced';
+  const language = user.language || 'en';
 
   return {
     userId: user.id,
     name: user.name || user.username || 'User',
-    activePolicies: user.focusAreas || ['motor'], // fallback to motor
+    activePolicies: Array.isArray(focusAreas) && focusAreas.length > 0 ? focusAreas : ['motor'],
     protectionScore,
     lastLoginDays: lastLogin,
     recentChallenges: recentChallenges.slice(0, 5).map((c: any) => c.title || 'Challenge'),
-    preferredTone: (user as any).advisor_tone || 'balanced',
+    preferredTone: advisorTone as 'strict' | 'balanced' | 'friendly',
     engagementLevel,
     tier,
     streakDays: user.streak || 0,
+    language: language as 'en' | 'ar',
   };
 }
 

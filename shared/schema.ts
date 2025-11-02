@@ -14,11 +14,20 @@ export const users = pgTable("users", {
   age: integer("age"),
   gender: text("gender"),
   language: text("language").default("en"), // "en" or "ar"
-  lifeProtectionScore: integer("life_protection_score").default(0), // Simple 0-100 score
+  lifeProtectionScore: integer("life_protection_score").default(0), // Protection Points (PP): 0-1000 scale
   streak: integer("streak").default(0),
   lastActiveDate: timestamp("last_active_date"),
+  dailyChallengesCompleted: integer("daily_challenges_completed").default(0), // Challenges completed today
+  lastChallengeDate: timestamp("last_challenge_date"), // Last challenge completion date
+  dailyProtectionPoints: integer("daily_protection_points").default(0), // PP earned today (max 50)
   focusAreas: jsonb("focus_areas").$type<string[]>().default([]),
   advisorTone: text("advisor_tone"),
+  
+  // Referral system
+  referralCode: text("referral_code").unique(), // Auto-generated unique code
+  referredBy: text("referred_by"), // Referral code of who referred this user
+  referralCount: integer("referral_count").default(0), // How many people they've referred
+  
   preferences: jsonb("preferences").$type<{
     theme: "light" | "dark";
     notifications: boolean;

@@ -26,6 +26,7 @@ export default function Signup() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
+  const [referralCode, setReferralCode] = useState("");
   const [showPassword, setShowPassword] = useState(false);
 
   // Step 3: Insurance Priority (MULTI-SELECT)
@@ -77,9 +78,12 @@ export default function Signup() {
     setError("");
 
     try {
+      console.log("🚀 Starting signup process...");
       const username = email.split("@")[0].toLowerCase().replace(/[^a-z0-9]/g, "");
+      console.log("📝 Username generated:", username);
       
       // 1. Create Supabase Auth user
+      console.log("1️⃣ Creating Supabase auth user...");
       const { data: authData, error: authError } = await supabase.auth.signUp({
         email,
         password,
@@ -95,7 +99,14 @@ export default function Signup() {
         },
       });
 
+      if (authError) {
+        console.error("❌ Supabase auth error:", authError);
+        throw new Error(authError.message);
+      }
+      console.log("✅ Supabase auth user created:", authData);
+
       // 2. Create user profile in our database (do this BEFORE checking email confirmation)
+      console.log("2️⃣ Creating user profile in database...");
       const res = await fetch("/api/auth/register", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -110,12 +121,16 @@ export default function Signup() {
           focusAreas: insurancePriority,
           insurancePriority: insurancePriority[0] || "",
           advisorTone,
+          referralCode: referralCode.trim() || undefined,
         }),
         credentials: "include",
       });
 
+      console.log("📡 Registration API response status:", res.status);
+      
       if (!res.ok) {
         const errData = await res.json();
+        console.error("❌ Registration API error:", errData);
         throw new Error(errData.message || "Registration failed");
       }
 
@@ -124,12 +139,14 @@ export default function Signup() {
 
       // Check if email confirmation is required
       if (authData?.user && !authData.session) {
+        console.log("📧 Email confirmation required");
         setError("Please check your email to verify your account before signing in.");
         setTimeout(() => setLocation("/login"), 3000);
         return;
       }
 
       // Success - redirect to dashboard
+      console.log("🎉 Signup complete! Redirecting to dashboard...");
       setLocation("/dashboard");
     } catch (err: any) {
       console.error("❌ Signup error:", err);
@@ -154,26 +171,24 @@ export default function Signup() {
       case 5:
         return true; // Smart Advisor Setup
       case 6:
-        return true; // First Challenge
+        return true; // Protection Points Tier System
       case 7:
-        return true; // Protection Score
-      case 8:
         return email.trim().length > 0 && isPasswordValid; // Email & Password LAST
       default:
         return false;
     }
   };
 
-  const progress = ((step + 1) / 9) * 100;
+  const progress = ((step + 1) / 8) * 100;
 
   return (
-    <div className="min-h-screen flex flex-col">
+    <div className="min-h-screen flex flex-col bg-background">
       <div className="p-4">
         <Progress value={progress} className="h-1" />
       </div>
 
       <div className="flex-1 flex items-center justify-center p-8">
-        <div className="w-full max-w-md space-y-6">
+        <div className="w-full max-w-2xl space-y-6">
           {/* Step 0: Language Selection - FIRST! */}
           {step === 0 && (
             <>
@@ -427,97 +442,100 @@ export default function Signup() {
             </>
           )}
 
-          {/* Step 6: First Challenge */}
+          {/* Step 6: Protection Points Tier System */}
           {step === 6 && (
             <>
-              <div className="text-center mb-6">
-                <h2 className="text-2xl font-bold mb-3">Your First Challenge Unlocked! 🎯</h2>
-                <p className="text-muted-foreground">Complete this to start earning points</p>
-              </div>
-              <Card className="p-6 border-2 border-primary shadow-lg">
-                <div className="space-y-4">
-                  <div className="flex items-start justify-between gap-4">
-                    <div className="flex items-center gap-3">
-                      <div className="p-3 rounded-full bg-primary/10 flex-shrink-0">
-                        <Car className="h-6 w-6 text-primary" />
-                      </div>
-                      <div>
-                        <h3 className="font-bold text-lg">Renew Your Motor Policy Early</h3>
-                        <p className="text-sm text-muted-foreground">Complete before expiry</p>
-                      </div>
-                    </div>
-                    <div className="text-right flex-shrink-0">
-                      <div className="text-2xl font-bold text-primary">+50</div>
-                      <div className="text-xs text-muted-foreground">Points</div>
-                    </div>
+              <div className="max-w-xl mx-auto space-y-8">
+                <div className="text-center space-y-4">
+                  <div className="mx-auto w-20 h-20 bg-gradient-to-br from-orange-500 to-orange-600 rounded-full flex items-center justify-center mb-4">
+                    <Shield className="h-10 w-10 text-white" />
                   </div>
-                  <div className="pt-4 border-t">
-                    <div className="flex items-center gap-2 text-sm text-muted-foreground mb-3">
-                      <Trophy className="h-4 w-4" />
-                      <span>Unlock: Car Wash Voucher</span>
-                    </div>
-                    <p className="text-sm text-muted-foreground">
-                      Renew your motor policy early — earn 50 points and unlock a car wash voucher.
-                    </p>
-                  </div>
+                  <h2 className="text-3xl font-bold">Protection Points System</h2>
+                  <p className="text-muted-foreground">
+                    Complete challenges to earn Protection Points (PP) and climb through the tiers!
+                  </p>
                 </div>
-              </Card>
-            </>
-          )}
 
-          {/* Step 7: Protection Score */}
-          {step === 7 && (
-            <>
-              <div className="max-w-xl mx-auto space-y-8 text-center">
                 <div className="space-y-4">
-                  <h2 className="text-3xl font-bold mb-3">Your Protection Score</h2>
-                  <p className="text-muted-foreground">Track how well-protected you are</p>
-                </div>
-                <div className="flex justify-center my-8">
-                  <ProgressRing progress={42} size={200} strokeWidth={20} />
-                </div>
-                <Card className="p-6 bg-gradient-to-br from-orange-500/10 to-background border-orange-500/20">
-                  <div className="space-y-4">
-                    <div className="flex items-center justify-center gap-2">
-                      <Shield className="h-6 w-6 text-orange-500" />
-                      <h3 className="text-2xl font-bold">You're 42% covered</h3>
+                  {/* Bronze Tier */}
+                  <Card className="p-4 border-2 border-orange-500 bg-gradient-to-br from-orange-500/10 to-background">
+                    <div className="flex items-center gap-4">
+                      <div className="w-12 h-12 bg-orange-500 rounded-full flex items-center justify-center flex-shrink-0">
+                        <Shield className="h-6 w-6 text-white" />
+                      </div>
+                      <div className="flex-1">
+                        <h3 className="font-bold text-lg">Bronze Tier</h3>
+                        <p className="text-sm text-muted-foreground">0 - 249 PP</p>
+                      </div>
+                      <div className="text-right">
+                        <div className="text-xs font-semibold text-orange-500">YOU START HERE</div>
+                      </div>
                     </div>
-                    <p className="text-muted-foreground">
-                      Complete challenges to boost your score!
-                    </p>
-                    <div className="grid grid-cols-4 gap-2 pt-4 border-t">
-                      <div className="text-center">
-                        <div className="text-xs text-muted-foreground mb-1">Bronze</div>
-                        <div className="h-2 bg-orange-500 rounded" />
-                        <div className="text-xs font-semibold mt-1">0-49</div>
+                  </Card>
+
+                  {/* Silver Tier */}
+                  <Card className="p-4 border border-gray-400/30">
+                    <div className="flex items-center gap-4">
+                      <div className="w-12 h-12 bg-gray-400 rounded-full flex items-center justify-center flex-shrink-0">
+                        <Shield className="h-6 w-6 text-white" />
                       </div>
-                      <div className="text-center opacity-50">
-                        <div className="text-xs text-muted-foreground mb-1">Silver</div>
-                        <div className="h-2 bg-gray-400 rounded" />
-                        <div className="text-xs font-semibold mt-1">50-69</div>
+                      <div className="flex-1">
+                        <h3 className="font-bold text-lg">Silver Tier</h3>
+                        <p className="text-sm text-muted-foreground">250 - 499 PP</p>
                       </div>
-                      <div className="text-center opacity-50">
-                        <div className="text-xs text-muted-foreground mb-1">Gold</div>
-                        <div className="h-2 bg-yellow-500 rounded" />
-                        <div className="text-xs font-semibold mt-1">70-89</div>
+                    </div>
+                  </Card>
+
+                  {/* Gold Tier */}
+                  <Card className="p-4 border border-yellow-500/30">
+                    <div className="flex items-center gap-4">
+                      <div className="w-12 h-12 bg-yellow-500 rounded-full flex items-center justify-center flex-shrink-0">
+                        <Shield className="h-6 w-6 text-white" />
                       </div>
-                      <div className="text-center opacity-50">
-                        <div className="text-xs text-muted-foreground mb-1">Platinum</div>
-                        <div className="h-2 bg-purple-500 rounded" />
-                        <div className="text-xs font-semibold mt-1">90-100</div>
+                      <div className="flex-1">
+                        <h3 className="font-bold text-lg">Gold Tier</h3>
+                        <p className="text-sm text-muted-foreground">500 - 749 PP</p>
                       </div>
+                    </div>
+                  </Card>
+
+                  {/* Platinum Tier */}
+                  <Card className="p-4 border border-purple-500/30">
+                    <div className="flex items-center gap-4">
+                      <div className="w-12 h-12 bg-gradient-to-br from-purple-500 to-pink-500 rounded-full flex items-center justify-center flex-shrink-0">
+                        <Shield className="h-6 w-6 text-white" />
+                      </div>
+                      <div className="flex-1">
+                        <h3 className="font-bold text-lg">Platinum Tier</h3>
+                        <p className="text-sm text-muted-foreground">750 - 1000 PP</p>
+                      </div>
+                    </div>
+                  </Card>
+                </div>
+
+                <Card className="p-4 bg-primary/5 border-primary/20">
+                  <div className="flex items-start gap-3">
+                    <Target className="h-5 w-5 text-primary mt-0.5 flex-shrink-0" />
+                    <div className="text-sm">
+                      <p className="font-semibold mb-2">Daily Challenge Limits:</p>
+                      <ul className="space-y-1 text-muted-foreground">
+                        <li>• Complete up to <span className="font-semibold text-foreground">2 challenges per day</span></li>
+                        <li>• Earn a maximum of <span className="font-semibold text-foreground">50 PP daily</span></li>
+                        <li>• Challenges expire after 24 hours</li>
+                      </ul>
                     </div>
                   </div>
                 </Card>
-                <p className="text-sm text-muted-foreground pt-4">
-                  Ready to start your journey to Platinum protection? Let's go! 🚀
+
+                <p className="text-center text-sm text-muted-foreground">
+                  Start at Bronze and work your way to Platinum! 🚀
                 </p>
               </div>
             </>
           )}
 
-          {/* Step 8: Email & Password (FINAL STEP) */}
-          {step === 8 && (
+          {/* Step 7: Email & Password (FINAL STEP) */}
+          {step === 7 && (
             <>
               <div className="text-center mb-8">
                 <h2 className="text-2xl font-bold">Create Your Account</h2>
@@ -568,6 +586,22 @@ export default function Signup() {
                     <p className="text-sm text-red-500 mt-1">Passwords don't match</p>
                   )}
                 </div>
+                <div>
+                  <Label htmlFor="referralCode" className="text-sm text-muted-foreground">
+                    Referral Code (Optional)
+                  </Label>
+                  <Input
+                    id="referralCode"
+                    type="text"
+                    value={referralCode}
+                    onChange={(e) => setReferralCode(e.target.value.toUpperCase())}
+                    placeholder="Enter referral code (if you have one)"
+                    className="uppercase"
+                  />
+                  <p className="text-xs text-muted-foreground mt-1">
+                    Your friend gets bonus points when you sign up with their code!
+                  </p>
+                </div>
               </div>
             </>
           )}
@@ -587,7 +621,7 @@ export default function Signup() {
         <div className="flex-1" />
         <Button
           onClick={() => {
-            if (step < 8) {
+            if (step < 7) {
               setStep(step + 1);
             } else {
               handleSignup();
@@ -600,7 +634,7 @@ export default function Signup() {
               <Loader2 className="h-4 w-4 mr-2 animate-spin" />
               {t('Creating account...', 'جاري إنشاء الحساب...')}
             </>
-          ) : step === 8 ? (
+          ) : step === 7 ? (
             t('Get Started', 'ابدأ الآن')
           ) : (
             t('Continue', 'متابعة')

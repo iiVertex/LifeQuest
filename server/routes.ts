@@ -346,33 +346,87 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       const userId = (challengeData as any).user_id || (challengeData as any).userId;
       const difficulty = (challengeData as any).difficulty || 'Easy';
+      const engagementPoints = (challengeData as any).engagement_points || (challengeData as any).engagementPoints || 10;
       
-      // Simple point system based on difficulty
-      let scoreIncrease = 5; // Easy/Beginner
-      if (difficulty === 'Medium' || difficulty === 'Intermediate') scoreIncrease = 10;
-      if (difficulty === 'Hard' || difficulty === 'Advanced') scoreIncrease = 15;
+      // Get user data for daily limit checks
+      const user = await storage.getUser(userId);
+      if (!user) {
+        res.status(404).json({ message: "User not found" });
+        return;
+      }
+
+      // Check daily challenge limit (3 per day)
+      const now = new Date();
+      const lastChallengeDate = (user as any).last_challenge_date 
+        ? new Date((user as any).last_challenge_date) 
+        : null;
       
-      console.log('[Challenge Complete] UserId:', userId, 'Difficulty:', difficulty, 'Score increase:', scoreIncrease);
-      console.log('[Challenge Complete] Challenge data:', JSON.stringify(challengeData, null, 2));
+      const dailyChallengesCompleted = (user as any).daily_challenges_completed || 0;
+      const dailyPPEarned = (user as any).daily_protection_points || 0;
+
+      // Reset daily counters if it's a new day (UTC)
+      const isNewDay = !lastChallengeDate || 
+        lastChallengeDate.toDateString() !== now.toDateString();
+
+      let currentDailyChallenges = isNewDay ? 0 : dailyChallengesCompleted;
+      let currentDailyPP = isNewDay ? 0 : dailyPPEarned;
+
+      // Enforce daily challenge limit (3 challenges per day)
+      const DAILY_CHALLENGE_LIMIT = 2;
+      if (currentDailyChallenges >= DAILY_CHALLENGE_LIMIT) {
+        res.status(429).json({ 
+          message: `Daily challenge limit reached! You can complete ${DAILY_CHALLENGE_LIMIT} challenges per day. Come back tomorrow!`,
+          dailyChallengesCompleted: currentDailyChallenges,
+          limit: DAILY_CHALLENGE_LIMIT,
+          resetTime: new Date(now.getFullYear(), now.getMonth(), now.getDate() + 1, 0, 0, 0).toISOString()
+        });
+        return;
+      }
+
+      // Calculate Protection Points (PP) from challenge template
+      // Use the actual engagement_points from the challenge, not hardcoded values
+      // NEW SCALE: 0-1000 PP total
+      const ppEarned = engagementPoints;
+      
+      // Enforce daily PP cap (50 max per day)
+      const DAILY_PP_CAP = 50;
+      const ppToAward = Math.min(ppEarned, DAILY_PP_CAP - currentDailyPP);
+
+      if (ppToAward <= 0) {
+        res.status(429).json({ 
+          message: `Daily PP cap reached! You've earned ${currentDailyPP}/${DAILY_PP_CAP} PP today. Come back tomorrow for more!`,
+          dailyPPEarned: currentDailyPP,
+          cap: DAILY_PP_CAP,
+          resetTime: new Date(now.getFullYear(), now.getMonth(), now.getDate() + 1, 0, 0, 0).toISOString()
+        });
+        return;
+      }
+
+      console.log('[Challenge Complete] UserId:', userId, 'Difficulty:', difficulty, 'PP earned:', ppToAward);
+      console.log('[Daily Limits] Challenges:', currentDailyChallenges + 1, '/', DAILY_CHALLENGE_LIMIT, 'PP:', currentDailyPP + ppToAward, '/', DAILY_PP_CAP);
       
       // Complete the challenge
-      const challenge = await storage.completeChallenge(req.params.challengeId, scoreIncrease);
+      const challenge = await storage.completeChallenge(req.params.challengeId, ppToAward);
       
       if (!challenge) {
         res.status(404).json({ message: "Failed to complete challenge" });
         return;
       }
       
-      // Update Life Protection Score (simple increment, capped at 100)
-      const user = await storage.getUser(userId);
-      const currentScore = (user as any)?.life_protection_score || 0;
-      const newScore = Math.min(100, currentScore + scoreIncrease);
+      // Update Protection Points (0-1000 scale, capped at 1000)
+      const currentPP = (user as any)?.life_protection_score || 0;
+      const newPP = Math.min(1000, currentPP + ppToAward);
       
+      // Update user with new PP and daily counters
       await storage.updateUser(userId, {
-        life_protection_score: newScore
+        life_protection_score: newPP,
+        daily_challenges_completed: currentDailyChallenges + 1,
+        daily_protection_points: currentDailyPP + ppToAward,
+        last_challenge_date: now
       } as any);
       
-      console.log(`[Challenge Complete] Life Protection Score: ${currentScore} → ${newScore} (+${scoreIncrease})`);
+      console.log(`[Challenge Complete] Protection Points: ${currentPP} → ${newPP} (+${ppToAward} PP)`);
+      console.log(`[Daily Progress] Challenges: ${currentDailyChallenges + 1}/${DAILY_CHALLENGE_LIMIT}, PP: ${currentDailyPP + ppToAward}/${DAILY_PP_CAP}`);
       
       // Update daily streak
       let streakUpdate;
@@ -386,9 +440,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       res.json({ 
         challenge,
-        lifeProtectionScore: newScore,
-        scoreIncrease,
-        streak: streakUpdate
+        protectionPoints: newPP,
+        ppEarned: ppToAward,
+        streak: streakUpdate,
+        dailyProgress: {
+          challengesCompleted: currentDailyChallenges + 1,
+          challengesLimit: DAILY_CHALLENGE_LIMIT,
+          challengesRemaining: DAILY_CHALLENGE_LIMIT - (currentDailyChallenges + 1),
+          ppEarnedToday: currentDailyPP + ppToAward,
+          ppCapToday: DAILY_PP_CAP,
+          ppRemainingToday: DAILY_PP_CAP - (currentDailyPP + ppToAward)
+        }
       });
     } catch (error) {
       console.error('Challenge completion error:', error);
@@ -639,6 +701,31 @@ When showing stats: Use the EXACT numbers from their profile above.`;
         return;
       }
 
+      // Check daily challenge limit BEFORE generating challenge
+      const now = new Date();
+      const lastChallengeDate = (user as any).last_challenge_date 
+        ? new Date((user as any).last_challenge_date) 
+        : null;
+      
+      const dailyChallengesCompleted = (user as any).daily_challenges_completed || 0;
+      
+      // Reset daily counters if it's a new day (UTC)
+      const isNewDay = !lastChallengeDate || 
+        lastChallengeDate.toDateString() !== now.toDateString();
+
+      const currentDailyChallenges = isNewDay ? 0 : dailyChallengesCompleted;
+      const DAILY_CHALLENGE_LIMIT = 2;
+
+      // If daily limit reached, return special message
+      if (currentDailyChallenges >= DAILY_CHALLENGE_LIMIT) {
+        res.json({
+          limitReached: true,
+          message: `You've already completed your ${DAILY_CHALLENGE_LIMIT} challenges for today! 🎯\n\nYour dedication is impressive, but rest is important too. Come back tomorrow to continue building your Life Protection Score!\n\n📊 Today's Progress:\n• Challenges Completed: ${currentDailyChallenges}/${DAILY_CHALLENGE_LIMIT}\n• Daily PP Earned: ${(user as any).daily_protection_points || 0}/50\n\n⏰ Reset Time: Midnight UTC`,
+          resetTime: new Date(now.getFullYear(), now.getMonth(), now.getDate() + 1, 0, 0, 0).toISOString()
+        });
+        return;
+      }
+
       // Get COMPLETE user context
       const lifeProtectionScore = (user as any).life_protection_score || 0;
       const currentStreak = user.streak || 0;
@@ -830,68 +917,188 @@ RESPOND WITH ONLY THIS JSON (no markdown, no code blocks):
   // Manual trigger for daily challenge generation (for testing)
   app.post("/api/admin/generate-daily-challenges", async (req, res) => {
     try {
-      const users = await storage.getAllUsers();
-      let generated = 0;
+      console.log('[ADMIN] Manually triggering daily challenge generation...');
       
-      for (const user of users) {
-        if (!user.focusAreas || user.focusAreas.length === 0) continue;
-        
-        const focusArea = user.focusAreas[Math.floor(Math.random() * user.focusAreas.length)];
-        const lifeProtectionScore = (user as any).lifeProtectionScore || 0;
-        
-        // Determine difficulty based on score
-        let difficulty = 'Easy';
-        let points = 5;
-        if (lifeProtectionScore > 60) { difficulty = 'Hard'; points = 15; }
-        else if (lifeProtectionScore > 30) { difficulty = 'Medium'; points = 10; }
-        
-        const systemPrompt = `Create a unique daily insurance challenge for a user interested in ${focusArea}.
-Protection Score: ${lifeProtectionScore}/100, Tone: ${(user as any).advisor_tone || 'balanced'}
-
-Return ONLY valid JSON:
-{
-  "title": "Challenge title (unique, engaging)",
-  "description": "What they'll learn and accomplish",
-  "category": "${focusArea}",
-  "difficulty": "${difficulty}",
-  "engagementPoints": ${points},
-  "estimatedDuration": 2,
-  "steps": ["step 1", "step 2", "step 3"]
-}`;
-
-        const challenge = await generateStructuredResponse<any>(
-          systemPrompt,
-          'Generate a unique challenge',
-          { temperature: 0.9, maxTokens: 400 }
-        );
-
-        if (challenge?.title) {
-          const template = await storage.createChallenge({
-            title: challenge.title,
-            description: challenge.description,
-            insuranceCategory: challenge.category || focusArea,
-            difficulty: challenge.difficulty || 'beginner',
-            engagementPoints: challenge.engagementPoints || 100,
-            estimatedDuration: challenge.estimatedDuration || 2,
-            requirements: { steps: challenge.steps || [], conditions: {} },
-            prerequisites: [],
-            isActive: true,
-          });
-
-          await storage.createUserChallenge({
-            userId: user.id,
-            templateId: template.id,
-            userData: { aiGenerated: true, dailyChallenge: true } as any
-          });
-
-          generated++;
-        }
-      }
-
-      res.json({ message: `Generated ${generated} daily challenges`, count: generated });
+      // Import and call the actual daily tasks function
+      const { generateDailyChallenges } = await import('./jobs/daily-tasks');
+      await (generateDailyChallenges as any)();
+      
+      res.json({ 
+        success: true, 
+        message: 'Daily challenges generated! Check logs for details.' 
+      });
     } catch (error: any) {
-      console.error("Daily challenge generation error:", error);
-      res.status(500).json({ message: "Failed to generate challenges", error: error.message });
+      console.error('[ADMIN] Error generating challenges:', error);
+      res.status(500).json({ message: 'Failed to generate challenges', error: error.message });
+    }
+  });
+
+  // ===== REFERRAL & REWARDS ROUTES =====
+  
+  // Get user's referral info
+  app.get("/api/user/:id/referral", async (req, res) => {
+    try {
+      let user = await storage.getUserByEmail(req.params.id);
+      if (!user) user = await storage.getUser(req.params.id);
+      
+      if (!user) {
+        return res.status(404).json({ message: "User not found" });
+      }
+      
+      // Generate referral code for old users if they don't have one
+      let referralCode = (user as any).referralCode || (user as any).referral_code;
+      if (!referralCode) {
+        const generateReferralCode = () => {
+          const username = user.username.toUpperCase().substring(0, 6).padEnd(6, 'X');
+          const randomDigits = Math.floor(1000 + Math.random() * 9000);
+          return `${username}${randomDigits}`;
+        };
+        
+        referralCode = generateReferralCode();
+        
+        // Update the user with the new referral code
+        await storage.updateUser(user.id, {
+          referralCode: referralCode,
+          referralCount: 0
+        } as any);
+      }
+      
+      const referredUsers = await storage.getReferredUsers(user.id);
+      
+      res.json({
+        referralCode: referralCode,
+        referralCount: (user as any).referralCount || (user as any).referral_count || 0,
+        referredBy: (user as any).referredBy || (user as any).referred_by,
+        referredUsers: referredUsers.map(u => ({
+          id: u.id,
+          name: u.name,
+          username: u.username,
+          tier: (u as any).lifeProtectionScore >= 750 ? 'platinum' :
+                (u as any).lifeProtectionScore >= 500 ? 'gold' :
+                (u as any).lifeProtectionScore >= 250 ? 'silver' : 'bronze',
+          points: (u as any).lifeProtectionScore || (u as any).life_protection_score || 0,
+          joinedAt: u.createdAt
+        }))
+      });
+    } catch (error: any) {
+      console.error('Error fetching referral info:', error);
+      res.status(500).json({ message: 'Failed to fetch referral info' });
+    }
+  });
+  
+  // Get leaderboard
+  app.get("/api/leaderboard/:type", async (req, res) => {
+    try {
+      const { type } = req.params; // 'global' or 'friends'
+      const userId = req.query.userId as string;
+      
+      if (type === 'global') {
+        const topUsers = await storage.getLeaderboard(20);
+        
+        let userRank = null;
+        if (userId) {
+          // Find user's rank if not in top 20
+          const allUsers = await storage.getAllUsers();
+          const sorted = allUsers.sort((a, b) => 
+            ((b as any).life_protection_score || 0) - ((a as any).life_protection_score || 0)
+          );
+          userRank = sorted.findIndex(u => u.id === userId || u.email === userId) + 1;
+        }
+        
+        res.json({
+          leaderboard: topUsers.map((u, idx) => ({
+            rank: idx + 1,
+            id: u.id,
+            name: u.name,
+            username: u.username,
+            tier: (u as any).life_protection_score >= 750 ? 'platinum' :
+                  (u as any).life_protection_score >= 500 ? 'gold' :
+                  (u as any).life_protection_score >= 250 ? 'silver' : 'bronze',
+            points: (u as any).life_protection_score || 0
+          })),
+          userRank
+        });
+      } else if (type === 'friends') {
+        if (!userId) {
+          return res.status(400).json({ message: 'userId required for friends leaderboard' });
+        }
+        
+        let user = await storage.getUserByEmail(userId);
+        if (!user) user = await storage.getUser(userId);
+        
+        if (!user) {
+          return res.status(404).json({ message: 'User not found' });
+        }
+        
+        const referredUsers = await storage.getReferredUsers(user.id);
+        const friendsWithUser = [user, ...referredUsers];
+        
+        const sorted = friendsWithUser.sort((a, b) => 
+          ((b as any).life_protection_score || 0) - ((a as any).life_protection_score || 0)
+        );
+        
+        res.json({
+          leaderboard: sorted.map((u, idx) => ({
+            rank: idx + 1,
+            id: u.id,
+            name: u.name,
+            username: u.username,
+            tier: (u as any).life_protection_score >= 750 ? 'platinum' :
+                  (u as any).life_protection_score >= 500 ? 'gold' :
+                  (u as any).life_protection_score >= 250 ? 'silver' : 'bronze',
+            points: (u as any).life_protection_score || 0,
+            isCurrentUser: u.id === user.id
+          }))
+        });
+      } else {
+        res.status(400).json({ message: 'Invalid leaderboard type' });
+      }
+    } catch (error: any) {
+      console.error('Error fetching leaderboard:', error);
+      res.status(500).json({ message: 'Failed to fetch leaderboard' });
+    }
+  });
+  
+  // Redeem points for coins (1 PP = 2 Coins)
+  app.post("/api/user/:id/redeem", async (req, res) => {
+    try {
+      const { points } = req.body; // Points to redeem (50, 100, 200)
+      
+      if (![50, 100, 200].includes(points)) {
+        return res.status(400).json({ message: 'Invalid redemption amount. Must be 50, 100, or 200 PP.' });
+      }
+      
+      let user = await storage.getUserByEmail(req.params.id);
+      if (!user) user = await storage.getUser(req.params.id);
+      
+      if (!user) {
+        return res.status(404).json({ message: "User not found" });
+      }
+      
+      const currentPoints = (user as any).life_protection_score || 0;
+      
+      if (currentPoints < points) {
+        return res.status(400).json({ message: 'Insufficient Protection Points' });
+      }
+      
+      // Deduct PP and calculate coins (1 PP = 2 Coins)
+      const newPoints = currentPoints - points;
+      const coinsEarned = points * 2;
+      
+      await storage.updateUser(user.id, { 
+        life_protection_score: newPoints 
+      } as any);
+      
+      res.json({
+        success: true,
+        pointsRedeemed: points,
+        coinsEarned,
+        newBalance: newPoints,
+        message: `Successfully redeemed ${points} PP for ${coinsEarned} QIC Coins!`
+      });
+    } catch (error: any) {
+      console.error('Error redeeming points:', error);
+      res.status(500).json({ message: 'Failed to redeem points' });
     }
   });
 

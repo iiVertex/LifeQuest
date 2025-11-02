@@ -3,6 +3,7 @@ import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Alert, AlertDescription } from "@/components/ui/alert";
+import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { ProgressRing } from "@/components/progress-ring";
 import { MissionCard } from "@/components/mission-card";
 import { ChallengeDetailDialog } from "@/components/challenge-detail-dialog";
@@ -49,7 +50,7 @@ const tierConfig = {
     textColor: "text-orange-600",
     borderColor: "border-orange-500/20",
     icon: Shield,
-    range: "0-49",
+    range: "0-249",
     perks: ["Basic rewards", "Weekly challenges", "Standard support"]
   },
   silver: {
@@ -60,7 +61,7 @@ const tierConfig = {
     textColor: "text-gray-600",
     borderColor: "border-gray-400/20",
     icon: Award,
-    range: "50-69",
+    range: "250-499",
     perks: ["Enhanced rewards", "Daily challenges", "Priority support", "Exclusive offers"]
   },
   gold: {
@@ -71,7 +72,7 @@ const tierConfig = {
     textColor: "text-yellow-600",
     borderColor: "border-yellow-500/20",
     icon: Trophy,
-    range: "70-89",
+    range: "500-749",
     perks: ["Premium rewards", "VIP challenges", "24/7 support", "Early access", "Partner discounts"]
   },
   platinum: {
@@ -82,7 +83,7 @@ const tierConfig = {
     textColor: "text-purple-600",
     borderColor: "border-purple-500/20",
     icon: Crown,
-    range: "90-100",
+    range: "750-1000",
     perks: ["Elite rewards", "Custom challenges", "Dedicated advisor", "Maximum benefits", "VIP events"]
   }
 };
@@ -114,21 +115,20 @@ export default function Dashboard() {
   // Calculate overall protection score from user's Life Protection Score (0-100)
   const protectionScore = (user as any)?.life_protection_score ?? 0;
   
-  // Calculate protection level badge based on score
+  // Calculate protection level badge based on score (NEW 0-1000 SCALE)
   const protectionLevel = 
-    protectionScore > 80 ? { name: "Diamond", icon: "💎", desc: "Fully Protected" } :
-    protectionScore > 60 ? { name: "Gold", icon: "🥇", desc: "Highly Protected" } :
-    protectionScore > 40 ? { name: "Silver", icon: "🥈", desc: "Well Protected" } :
-    protectionScore > 20 ? { name: "Bronze", icon: "🥉", desc: "Building Protection" } :
-    { name: "Beginner", icon: "🛡️", desc: "Getting Started" };
+    protectionScore >= 750 ? { name: "Platinum", icon: "💎", desc: "Elite Protection" } :
+    protectionScore >= 500 ? { name: "Gold", icon: "🥇", desc: "Highly Protected" } :
+    protectionScore >= 250 ? { name: "Silver", icon: "🥈", desc: "Well Protected" } :
+    { name: "Bronze", icon: "🥉", desc: "Building Protection" };
   
-  const currentTier = protectionScore >= 90 ? "platinum" : 
-                     protectionScore >= 70 ? "gold" : 
-                     protectionScore >= 50 ? "silver" : "bronze";
+  const currentTier = protectionScore >= 750 ? "platinum" : 
+                     protectionScore >= 500 ? "gold" : 
+                     protectionScore >= 250 ? "silver" : "bronze";
   const tier = tierConfig[currentTier as keyof typeof tierConfig];
-  const nextTierThreshold = protectionScore >= 90 ? 100 : 
-                           protectionScore >= 70 ? 90 : 
-                           protectionScore >= 50 ? 70 : 50;
+  const nextTierThreshold = protectionScore >= 750 ? 1000 : 
+                           protectionScore >= 500 ? 750 : 
+                           protectionScore >= 250 ? 500 : 250;
   const pointsToNextTier = nextTierThreshold - protectionScore;
 
   // Smart Advisor messages - use real AI interactions or fallbacks
@@ -216,10 +216,35 @@ export default function Dashboard() {
 
   if (userLoading || challengesLoading) {
     return (
-      <div className="min-h-screen pb-24 flex items-center justify-center">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto mb-4"></div>
-          <p className="text-muted-foreground">Loading Engagement Hub...</p>
+      <div className="min-h-screen pb-24 flex items-center justify-center bg-gradient-to-b from-background to-muted/20" dir={dir}>
+        <div className="text-center space-y-6 max-w-md px-4">
+          {/* Animated Logo/Icon */}
+          <div className="relative">
+            <div className="absolute inset-0 flex items-center justify-center">
+              <div className="w-24 h-24 bg-primary/20 rounded-full animate-ping"></div>
+            </div>
+            <div className="relative flex items-center justify-center">
+              <Shield className="h-24 w-24 text-primary animate-pulse" />
+            </div>
+          </div>
+          
+          {/* Loading Text */}
+          <div className="space-y-2">
+            <h2 className="text-2xl font-bold bg-gradient-to-r from-primary to-primary/60 bg-clip-text text-transparent">
+              {t('Setting up your dashboard...', 'جاري إعداد لوحة التحكم...')}
+            </h2>
+            <p className="text-sm text-muted-foreground">
+              {userLoading && t('Loading your profile', 'تحميل ملفك الشخصي')}
+              {challengesLoading && !userLoading && t('Loading your challenges', 'تحميل التحديات الخاصة بك')}
+            </p>
+          </div>
+          
+          {/* Progress Indicator */}
+          <div className="flex justify-center gap-2">
+            <div className="w-2 h-2 bg-primary rounded-full animate-bounce" style={{ animationDelay: '0ms' }}></div>
+            <div className="w-2 h-2 bg-primary rounded-full animate-bounce" style={{ animationDelay: '150ms' }}></div>
+            <div className="w-2 h-2 bg-primary rounded-full animate-bounce" style={{ animationDelay: '300ms' }}></div>
+          </div>
         </div>
       </div>
     );
@@ -230,34 +255,38 @@ export default function Dashboard() {
   return (
     <div className="min-h-screen pb-24 bg-gradient-to-b from-background to-muted/20" data-testid="page-dashboard" dir={dir}>
       {/* Header */}
-      <div className="bg-gradient-to-br from-primary/10 via-primary/5 to-background border-b">
-        <div className="p-4 md:p-6 max-w-7xl mx-auto">
-          <div className="flex items-center md:items-center justify-between gap-3">
-            <div className="flex-1 min-w-0">
-              <h1 className="text-xl md:text-2xl font-bold leading-tight">{t('Engagement Hub', 'مركز التفاعل')}</h1>
-              <p className="text-sm md:text-sm text-muted-foreground truncate">{t('Welcome back', 'مرحباً بعودتك')}, {user?.name || t("User", "المستخدم")}!</p>
+      <div className="bg-card border-b">
+        <div className="p-6 max-w-7xl mx-auto">
+          <div className="flex items-center justify-between gap-4">
+            <div className="flex items-center gap-4 flex-1 min-w-0">
+              <Avatar className="h-12 w-12">
+                <AvatarFallback className="bg-gradient-to-br from-primary to-primary/50 text-primary-foreground text-lg">
+                  {user?.name?.charAt(0).toUpperCase() || "U"}
+                </AvatarFallback>
+              </Avatar>
+              <div className="flex-1 min-w-0">
+                <p className="text-sm text-muted-foreground">
+                  {t('Welcome back', 'مرحباً بعودتك')}
+                </p>
+                <h1 className="text-2xl font-bold">
+                  {user?.name || t("User", "المستخدم")}
+                </h1>
+              </div>
             </div>
             
-            <div className="flex flex-col md:flex-row items-end md:items-center gap-2 md:gap-4 flex-shrink-0">
-              {/* Language Toggle */}
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => setLanguage(language === 'en' ? 'ar' : 'en')}
-                className="h-8 px-2"
-              >
-                <LanguagesIcon className="h-4 w-4 mr-1" />
-                <span className="text-xs">{language === 'en' ? 'AR' : 'EN'}</span>
-              </Button>
-              
-              <div className="flex items-center gap-1.5 bg-gradient-to-r from-orange-500/10 to-red-500/10 border border-orange-500/20 rounded-md px-2.5 py-1.5">
+            <div className="flex items-center gap-3">
+              {/* Streak Badge */}
+              <div className="flex items-center gap-2 px-3 py-2 rounded-lg bg-orange-500/10 border border-orange-500/20">
                 <Flame className="h-4 w-4 text-orange-500" />
-                <span className="text-sm font-bold text-orange-600 dark:text-orange-400">{user?.streak || 0}</span>
+                <span className="text-sm font-bold text-orange-600 dark:text-orange-400">
+                  {user?.streak || 0}
+                </span>
               </div>
               
-              <Badge className={`${tier.bgColor} ${tier.textColor} border ${tier.borderColor} px-3 py-1.5 md:px-4 md:py-2 text-xs md:text-sm`}>
-                <TierIcon className="h-4 w-4 mr-1.5 md:mr-2" />
-                {language === 'ar' ? (tier.nameAr || tier.name) : tier.name} {t('Tier', 'مستوى')}
+              {/* Tier Badge */}
+              <Badge className={`${tier.bgColor} ${tier.textColor} border ${tier.borderColor} px-4 py-2`}>
+                <TierIcon className="h-4 w-4 mr-2" />
+                {language === 'ar' ? (tier.nameAr || tier.name) : tier.name}
               </Badge>
             </div>
           </div>
@@ -278,7 +307,7 @@ export default function Dashboard() {
                 <span className="text-5xl font-bold bg-gradient-to-r from-primary to-primary/60 bg-clip-text text-transparent">
                   {protectionScore}
                 </span>
-                <span className="text-2xl text-muted-foreground">/100</span>
+                <span className="text-2xl text-muted-foreground">/1000</span>
               </div>
 
               <div className="space-y-2">
@@ -292,9 +321,9 @@ export default function Dashboard() {
                     <TrendingUp className="h-4 w-4 text-green-500" />
                     <span className="text-muted-foreground">
                       Just <strong className="text-foreground">{pointsToNextTier} points</strong> away from{" "}
-                      {protectionScore >= 90 ? "perfect score" : 
-                       protectionScore >= 70 ? "Platinum" : 
-                       protectionScore >= 50 ? "Gold" : "Silver"} Tier!
+                      {protectionScore >= 750 ? "perfect score" : 
+                       protectionScore >= 500 ? "Platinum" : 
+                       protectionScore >= 250 ? "Gold" : "Silver"} Tier!
                     </span>
                   </div>
                 )}

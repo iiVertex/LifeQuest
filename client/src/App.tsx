@@ -59,8 +59,8 @@ function Router() {
       setActiveTab("home");
     } else if (location === "/challenges") {
       setActiveTab("challenges");
-    } else if (location === "/social") {
-      setActiveTab("social");
+    } else if (location === "/rewards") {
+      setActiveTab("rewards");
     } else if (location === "/profile") {
       setActiveTab("profile");
     }
@@ -96,7 +96,7 @@ function Router() {
             const routes: Record<string, string> = {
               home: "/",
               challenges: "/challenges",
-              social: "/social",
+              rewards: "/rewards",
               profile: "/profile",
             };
             setLocation(routes[tab] || "/");

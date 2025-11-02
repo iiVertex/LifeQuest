@@ -57,6 +57,7 @@ export interface IStorage {
   createUserChallenge(userChallenge: InsertUserChallenge): Promise<UserChallenge>;
   updateChallengeProgress(challengeId: string, progress: number): Promise<UserChallenge | undefined>;
   completeChallenge(challengeId: string, engagementPoints?: number): Promise<UserChallenge | undefined>;
+  deleteUserChallenge(challengeId: string): Promise<boolean>;
   
   // Skill Tree operations
   getSkillTreeNodes(): Promise<SkillTreeNode[]>;
@@ -72,6 +73,11 @@ export interface IStorage {
   getSmartAdvisorInteractions(userId: string): Promise<SmartAdvisorInteraction[]>;
   createSmartAdvisorInteraction(interaction: InsertSmartAdvisorInteraction): Promise<SmartAdvisorInteraction>;
   markInteractionAsRead(interactionId: string): Promise<void>;
+  
+  // Referral operations
+  getUserByReferralCode(referralCode: string): Promise<User | undefined>;
+  getReferredUsers(userId: string): Promise<User[]>;
+  getLeaderboard(limit?: number): Promise<User[]>;
 }
 
 export class SupabaseStorage implements IStorage {
@@ -405,6 +411,19 @@ export class SupabaseStorage implements IStorage {
     return data as UserChallenge;
   }
 
+  async deleteUserChallenge(challengeId: string): Promise<boolean> {
+    const { error } = await supabase
+      .from('user_challenges')
+      .delete()
+      .eq('id', challengeId);
+    
+    if (error) {
+      console.error('Error deleting challenge:', error);
+      return false;
+    }
+    return true;
+  }
+
   async getSkillTreeNodes(): Promise<SkillTreeNode[]> {
     const { data, error } = await supabase
       .from('skill_tree_nodes')
@@ -531,6 +550,54 @@ export class SupabaseStorage implements IStorage {
     if (error) {
       console.error('Error marking interaction as read:', error);
     }
+  }
+  
+  // Referral operations
+  async getUserByReferralCode(referralCode: string): Promise<User | undefined> {
+    const { data, error } = await supabase
+      .from('users')
+      .select('*')
+      .eq('referral_code', referralCode)
+      .single();
+    
+    if (error) {
+      if (error.code === 'PGRST116') return undefined;
+      console.error('Error fetching user by referral code:', error);
+      return undefined;
+    }
+    return data as User;
+  }
+  
+  async getReferredUsers(userId: string): Promise<User[]> {
+    // First get the user's referral code
+    const user = await this.getUser(userId);
+    if (!user || !(user as any).referralCode) return [];
+    
+    const { data, error } = await supabase
+      .from('users')
+      .select('*')
+      .eq('referred_by', (user as any).referralCode)
+      .order('created_at', { ascending: false });
+    
+    if (error) {
+      console.error('Error fetching referred users:', error);
+      return [];
+    }
+    return data as User[];
+  }
+  
+  async getLeaderboard(limit: number = 20): Promise<User[]> {
+    const { data, error } = await supabase
+      .from('users')
+      .select('*')
+      .order('life_protection_score', { ascending: false })
+      .limit(limit);
+    
+    if (error) {
+      console.error('Error fetching leaderboard:', error);
+      return [];
+    }
+    return data as User[];
   }
 }
 

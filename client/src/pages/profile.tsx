@@ -33,14 +33,13 @@ export default function Profile() {
       .slice(0, 2);
   };
 
-  // Calculate protection level from score
+  // Calculate protection level from score (NEW 0-1000 SCALE)
   const lifeProtectionScore = (user as any)?.life_protection_score ?? 0;
   const protectionLevel = 
-    lifeProtectionScore > 80 ? { name: "Diamond", icon: "💎" } :
-    lifeProtectionScore > 60 ? { name: "Gold", icon: "🥇" } :
-    lifeProtectionScore > 40 ? { name: "Silver", icon: "🥈" } :
-    lifeProtectionScore > 20 ? { name: "Bronze", icon: "🥉" } :
-    { name: "Beginner", icon: "🛡️" };
+    lifeProtectionScore >= 750 ? { name: "Platinum", icon: "💎" } :
+    lifeProtectionScore >= 500 ? { name: "Gold", icon: "🥇" } :
+    lifeProtectionScore >= 250 ? { name: "Silver", icon: "🥈" } :
+    { name: "Bronze", icon: "🥉" };
 
   return (
     <div className="min-h-screen pb-24 p-4" data-testid="page-profile">
@@ -53,7 +52,7 @@ export default function Profile() {
         <h1 className="text-2xl font-bold">{userName}</h1>
         <div className="flex items-center justify-center gap-2 text-muted-foreground mt-1">
           <Award className="h-4 w-4" />
-          <span>{protectionLevel.icon} {protectionLevel.name} • {lifeProtectionScore}/100 Life Protection</span>
+          <span>{protectionLevel.icon} {protectionLevel.name} • {lifeProtectionScore}/1000 PP</span>
         </div>
         {user?.focusAreas && user.focusAreas.length > 0 && (
           <div className="flex flex-wrap gap-2 justify-center mt-3">

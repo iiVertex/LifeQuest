@@ -10,6 +10,7 @@ import {
   REFRESH_TOKEN_COOKIE_OPTIONS,
 } from './jwt';
 import { authenticateToken } from './middleware';
+import { generateDailyChallenges } from '../jobs/daily-tasks';
 
 const router = Router();
 
@@ -21,8 +22,10 @@ const registerSchema = z.object({
   email: z.string().email().optional(),
   age: z.number().optional(),
   gender: z.string().optional(),
+  language: z.string().optional(),
   focusAreas: z.array(z.string()).optional(),
   advisorTone: z.string().optional(),
+  referralCode: z.string().optional(), // Optional referral code
 });
 
 const loginSchema = z.object({
@@ -54,9 +57,26 @@ router.post('/register', async (req: Request, res: Response) => {
       res.status(409).json({ message: 'Username already taken' });
       return;
     }
+    
+    // Validate referral code if provided
+    let referrerUser = null;
+    if (body.referralCode) {
+      referrerUser = await storage.getUserByReferralCode(body.referralCode);
+      if (!referrerUser) {
+        res.status(400).json({ message: 'Invalid referral code' });
+        return;
+      }
+    }
 
     // Hash password
     const hashedPassword = await hashPassword(body.password);
+    
+    // Generate unique referral code for new user (username + 4 random digits)
+    const generateReferralCode = () => {
+      const usernamePrefix = body.username.toUpperCase().substring(0, 6);
+      const randomDigits = Math.floor(1000 + Math.random() * 9000);
+      return `${usernamePrefix}${randomDigits}`;
+    };
 
     // Create user in memory
     const user = await storage.createUser({
@@ -66,11 +86,40 @@ router.post('/register', async (req: Request, res: Response) => {
       email: body.email,
       age: body.age,
       gender: body.gender,
+      language: body.language,
       focusAreas: body.focusAreas || [],
       advisorTone: body.advisorTone,
-    });
+      referralCode: generateReferralCode(),
+      referredBy: body.referralCode || null,
+    } as any);
 
     console.log(`✅ New user registered: ${user.username} (${user.id})`);
+    
+    // Award referral points if applicable
+    if (referrerUser) {
+      const currentCount = (referrerUser as any).referralCount || (referrerUser as any).referral_count || 0;
+      const currentPoints = (referrerUser as any).lifeProtectionScore || (referrerUser as any).life_protection_score || 0;
+      
+      // First referral: 50 points, subsequent: 5 points each
+      const bonusPoints = currentCount === 0 ? 50 : 5;
+      
+      await storage.updateUser(referrerUser.id, {
+        referralCount: currentCount + 1,
+        lifeProtectionScore: currentPoints + bonusPoints
+      } as any);
+      
+      console.log(`✅ Awarded ${bonusPoints} PP to ${referrerUser.username} for referring ${user.username}`);
+    }
+
+    // Generate initial challenges for the new user
+    try {
+      console.log(`[Registration] Generating initial challenges for new user: ${user.id}`);
+      await generateDailyChallenges();
+      console.log(`[Registration] ✅ Challenges generated for user: ${user.id}`);
+    } catch (challengeError) {
+      console.error('[Registration] Failed to generate initial challenges:', challengeError);
+      // Don't block registration if challenge generation fails
+    }
 
     // Generate tokens
     const accessToken = generateAccessToken(user);

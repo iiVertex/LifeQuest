@@ -42,10 +42,23 @@ export async function updateDailyStreak(userId: string): Promise<StreakUpdate> {
   const today = new Date();
   today.setHours(0, 0, 0, 0); // Normalize to start of day
   
-  const lastActiveDate = (user as any).last_active_date ? new Date((user as any).last_active_date) : null;
+  // Store as simple date string YYYY-MM-DD to avoid timezone issues
+  const todayDateString = today.toISOString().split('T')[0]; // "2025-11-02"
+  
+  const lastActiveDateString = (user as any).last_active_date;
+  const lastActiveDate = lastActiveDateString ? new Date(lastActiveDateString + 'T00:00:00.000Z') : null;
   if (lastActiveDate) {
     lastActiveDate.setHours(0, 0, 0, 0);
   }
+
+  console.log('[Streak] Date comparison:', {
+    lastActiveDateRaw: (user as any).last_active_date,
+    lastActiveDateParsed: lastActiveDate?.toISOString(),
+    todayDateString,
+    todayNormalized: today.toISOString(),
+    areEqual: lastActiveDateString === todayDateString,
+    timeDiff: lastActiveDate ? today.getTime() - lastActiveDate.getTime() : null
+  });
 
   let currentStreak = user.streak || 0;
   let longestStreak = (user as any).longest_streak || 0;
@@ -68,12 +81,12 @@ export async function updateDailyStreak(userId: string): Promise<StreakUpdate> {
     console.log('[Streak] Case 1: First activity ever');
   }
   // Case 2: Already completed today (same day)
-  else if (today.getTime() === lastActiveDate.getTime()) {
+  else if (lastActiveDateString === todayDateString) {
     // No change - already counted for today
     message = '✅ Already counted today. Keep up the great work!';
-    console.log('[Streak] Case 2: Already counted today');
+    console.log('[Streak] Case 2: Already counted today - returning without update');
     
-    // Don't update anything - just return current state
+    // IMPORTANT: Don't update database - just return current state
     return {
       currentStreak,
       longestStreak,
@@ -108,13 +121,13 @@ export async function updateDailyStreak(userId: string): Promise<StreakUpdate> {
   // Update user record
   console.log('[Streak] Updating user with:', {
     streak: currentStreak,
-    last_active_date: today.toISOString(),
+    last_active_date: todayDateString,
     longest_streak: longestStreak
   });
   
   const updateResult = await storage.updateUser(userId, {
     streak: currentStreak,
-    last_active_date: today.toISOString(),
+    last_active_date: todayDateString,
     longest_streak: longestStreak,
   } as any);
   

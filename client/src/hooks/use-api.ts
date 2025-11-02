@@ -353,3 +353,52 @@ export const useGenerateAutoMessage = () => {
     },
   });
 };
+
+// Referral & Rewards hooks
+export const useReferralInfo = (userId: string) => {
+  return useQuery({
+    queryKey: ["referral", userId],
+    queryFn: async () => {
+      const response = await fetch(`${API_BASE}/user/${userId}/referral`);
+      if (!response.ok) throw new Error("Failed to fetch referral info");
+      return response.json();
+    },
+  });
+};
+
+export const useLeaderboard = (type: "global" | "friends", userId?: string) => {
+  return useQuery({
+    queryKey: ["leaderboard", type, userId],
+    queryFn: async () => {
+      const url = userId 
+        ? `${API_BASE}/leaderboard/${type}?userId=${encodeURIComponent(userId)}`
+        : `${API_BASE}/leaderboard/${type}`;
+      const response = await fetch(url);
+      if (!response.ok) throw new Error("Failed to fetch leaderboard");
+      return response.json();
+    },
+  });
+};
+
+export const useRedeemPoints = () => {
+  const queryClient = useQueryClient();
+  
+  return useMutation({
+    mutationFn: async ({ userId, points }: { userId: string; points: number }) => {
+      const response = await fetch(`${API_BASE}/user/${userId}/redeem`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ points }),
+      });
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.message || "Failed to redeem points");
+      }
+      return response.json();
+    },
+    onSuccess: (_, { userId }) => {
+      queryClient.invalidateQueries({ queryKey: ["user", userId] });
+      queryClient.invalidateQueries({ queryKey: ["leaderboard"] });
+    },
+  });
+};
