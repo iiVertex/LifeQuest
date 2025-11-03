@@ -1,26 +1,5 @@
-→ Multi select
-→ Add Arabic Language.
-→ Replace the social tab with Rewards tab that are redeemable (points → QIC coins).
-→ Also in the rewards section add a friends thing where you can invite & you get certain points. (Referral)
-→ Make the friends option so you can compare your points with friends.
-→ Bundle & save…
-→ Add a decline message for the AI challenge
-→ Cross-conversion system
-→ Fix sign up (wait I think it works why hwy)
-→ If there are no AI challenges there should be a button that says “suggest a challenge”
-
-
-Phase 2 - Challenge Validation:
-
-Add quiz system (5 questions, 80% pass rate)
-Add photo/text submission for action challenges
-AI validation for submissions
-Phase 3 - QIC Integration:
-
-Connect to QIC API for real policy checks
-Verify renewals, referrals, new products
-Award bonus PP for real-world actions
-
-
 Extras important ones I guess:
-i18n for the language thing.. store previous AI chats for predictions n shi... challenge validation
+Admin portal
+i18n for the language thing 
+store previous AI chats for predictions n shi
+challenge validation

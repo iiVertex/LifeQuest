@@ -1006,7 +1006,7 @@ RESPOND WITH ONLY THIS JSON (no markdown, no code blocks):
         }
         
         res.json({
-          leaderboard: topUsers.map((u, idx) => ({
+          topUsers: topUsers.map((u, idx) => ({
             rank: idx + 1,
             id: u.id,
             name: u.name,
@@ -1038,7 +1038,7 @@ RESPOND WITH ONLY THIS JSON (no markdown, no code blocks):
         );
         
         res.json({
-          leaderboard: sorted.map((u, idx) => ({
+          topUsers: sorted.map((u, idx) => ({
             rank: idx + 1,
             id: u.id,
             name: u.name,

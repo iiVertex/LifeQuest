@@ -4,11 +4,12 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { ProgressRing } from "@/components/progress-ring";
 import { MissionCard } from "@/components/mission-card";
 import { ChallengeDetailDialog } from "@/components/challenge-detail-dialog";
 import { 
-  Shield, 
+  ShieldCheck, 
   TrendingUp, 
   Trophy, 
   Star, 
@@ -45,17 +46,19 @@ const tierConfig = {
   bronze: {
     name: "Bronze",
     nameAr: "برونزي",
+    desc: "Building Protection",
     color: "from-orange-600 to-orange-400",
     bgColor: "bg-orange-500/10",
     textColor: "text-orange-600",
     borderColor: "border-orange-500/20",
-    icon: Shield,
+    icon: ShieldCheck,
     range: "0-249",
     perks: ["Basic rewards", "Weekly challenges", "Standard support"]
   },
   silver: {
     name: "Silver",
     nameAr: "فضي",
+    desc: "Well Protected",
     color: "from-gray-400 to-gray-300",
     bgColor: "bg-gray-400/10",
     textColor: "text-gray-600",
@@ -67,6 +70,7 @@ const tierConfig = {
   gold: {
     name: "Gold",
     nameAr: "ذهبي",
+    desc: "Highly Protected",
     color: "from-yellow-500 to-yellow-300",
     bgColor: "bg-yellow-500/10",
     textColor: "text-yellow-600",
@@ -78,6 +82,7 @@ const tierConfig = {
   platinum: {
     name: "Platinum",
     nameAr: "بلاتيني",
+    desc: "Fully Secure",
     color: "from-purple-600 to-purple-400",
     bgColor: "bg-purple-500/10",
     textColor: "text-purple-600",
@@ -224,7 +229,7 @@ export default function Dashboard() {
               <div className="w-24 h-24 bg-primary/20 rounded-full animate-ping"></div>
             </div>
             <div className="relative flex items-center justify-center">
-              <Shield className="h-24 w-24 text-primary animate-pulse" />
+              <ShieldCheck className="h-24 w-24 text-primary animate-pulse" />
             </div>
           </div>
           
@@ -299,7 +304,7 @@ export default function Dashboard() {
           <div className="grid md:grid-cols-2 gap-8 items-center">
             <div className="space-y-4">
               <div className="flex items-center gap-2">
-                <Shield className="h-6 w-6 text-primary" />
+                <ShieldCheck className="h-6 w-6 text-primary" />
                 <h2 className="text-2xl font-bold">Your Protection Score</h2>
               </div>
               
@@ -354,14 +359,163 @@ export default function Dashboard() {
                   <div className="text-xs text-muted-foreground">{protectionLevel.desc}</div>
                 </div>
               </ProgressRing>
-              <Button 
-                variant="outline" 
-                className="mt-6"
-                onClick={() => setLocation("/challenges")}
-              >
-                <Target className="h-4 w-4 mr-2" />
-                Boost Your Score
-              </Button>
+              
+              <Dialog>
+                <DialogTrigger asChild>
+                  <Button 
+                    variant="outline" 
+                    className="mt-6"
+                  >
+                    <Award className="h-4 w-4 mr-2" />
+                    View Tier System
+                  </Button>
+                </DialogTrigger>
+                <DialogContent className="max-w-2xl max-h-[80vh] overflow-y-auto">
+                  <DialogHeader>
+                    <DialogTitle className="text-2xl font-bold flex items-center gap-2">
+                      <Trophy className="h-6 w-6 text-primary" />
+                      Protection Points Tier System
+                    </DialogTitle>
+                  </DialogHeader>
+                  
+                  <div className="space-y-6 py-4">
+                    {/* Current Progress */}
+                    <div className="bg-primary/5 rounded-lg p-4 border border-primary/20">
+                      <div className="flex items-center justify-between mb-2">
+                        <span className="text-sm text-muted-foreground">Your Current Progress</span>
+                        <span className="text-2xl font-bold text-primary">{protectionScore}/1000 PP</span>
+                      </div>
+                      <div className="h-3 bg-muted rounded-full overflow-hidden">
+                        <div 
+                          className="h-full bg-gradient-to-r from-primary to-primary/60 transition-all duration-500"
+                          style={{ width: `${(protectionScore / 1000) * 100}%` }}
+                        />
+                      </div>
+                      <p className="text-xs text-muted-foreground mt-2">
+                        {protectionScore < 1000 ? `${pointsToNextTier} PP until ${tierConfig[currentTier === 'bronze' ? 'silver' : currentTier === 'silver' ? 'gold' : 'platinum'].name}` : 'Maximum tier reached!'}
+                      </p>
+                    </div>
+
+                    {/* Tier Breakdown */}
+                    <div className="space-y-4">
+                      {[
+                        { 
+                          tier: tierConfig.bronze, 
+                          range: "0-249 PP",
+                          icon: Award,
+                          perks: ["Basic rewards", "Weekly challenges", "Standard support"]
+                        },
+                        { 
+                          tier: tierConfig.silver, 
+                          range: "250-499 PP",
+                          icon: Trophy,
+                          perks: ["Enhanced rewards", "Daily challenges", "Priority support", "Exclusive badges"]
+                        },
+                        { 
+                          tier: tierConfig.gold, 
+                          range: "500-749 PP",
+                          icon: Crown,
+                          perks: ["Premium rewards", "Personalized challenges", "VIP support", "Gold badges", "Early access"]
+                        },
+                        { 
+                          tier: tierConfig.platinum, 
+                          range: "750-1000 PP",
+                          icon: Sparkles,
+                          perks: ["Elite rewards", "Custom challenges", "Dedicated support", "Platinum badges", "Exclusive events", "Partner perks"]
+                        }
+                      ].map(({ tier, range, icon: Icon, perks }) => {
+                        const isCurrentTier = tier.name === protectionLevel.name;
+                        return (
+                          <div 
+                            key={tier.name}
+                            className={`relative rounded-lg border-2 transition-all ${
+                              isCurrentTier 
+                                ? `border-current ${tier.bgColor} shadow-lg` 
+                                : 'border-border hover:border-muted-foreground/30'
+                            }`}
+                          >
+                            {isCurrentTier && (
+                              <div className="px-4 pt-3 pb-1">
+                                <Badge className={`${tier.bgColor} ${tier.textColor} border-2 border-background`}>
+                                  Current Tier
+                                </Badge>
+                              </div>
+                            )}
+                            
+                            <div className={`flex items-start gap-4 p-4 ${isCurrentTier ? 'pt-2' : ''}`}>
+                              <div className={`p-3 rounded-full ${tier.bgColor}`}>
+                                <Icon className={`h-6 w-6 ${tier.textColor}`} />
+                              </div>
+                              
+                              <div className="flex-1">
+                                <div className="flex items-center justify-between mb-1">
+                                  <h3 className={`text-lg font-bold ${tier.textColor}`}>
+                                    {tier.name}
+                                  </h3>
+                                  <span className="text-sm font-semibold text-muted-foreground">
+                                    {range}
+                                  </span>
+                                </div>
+                                
+                                <p className="text-sm text-muted-foreground mb-3">
+                                  {tier.desc}
+                                </p>
+                                
+                                <div className="space-y-1">
+                                  {perks.map((perk, idx) => (
+                                    <div key={idx} className="flex items-center gap-2 text-xs">
+                                      <div className={`h-1.5 w-1.5 rounded-full ${tier.bgColor}`} />
+                                      <span className="text-muted-foreground">{perk}</span>
+                                    </div>
+                                  ))}
+                                </div>
+                              </div>
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+
+                    {/* How to Earn Points */}
+                    <div className="bg-muted/50 rounded-lg p-4">
+                      <h4 className="font-semibold mb-3 flex items-center gap-2">
+                        <Zap className="h-4 w-4 text-yellow-600" />
+                        How to Earn Protection Points
+                      </h4>
+                      <div className="grid grid-cols-2 gap-3 text-sm">
+                        <div className="flex items-start gap-2">
+                          <Target className="h-4 w-4 text-primary mt-0.5 flex-shrink-0" />
+                          <div>
+                            <div className="font-medium">Complete Challenges</div>
+                            <div className="text-xs text-muted-foreground">10-40 PP per challenge</div>
+                          </div>
+                        </div>
+                        <div className="flex items-start gap-2">
+                          <Users className="h-4 w-4 text-primary mt-0.5 flex-shrink-0" />
+                          <div>
+                            <div className="font-medium">Refer Friends</div>
+                            <div className="text-xs text-muted-foreground">50 PP first, 5 PP each</div>
+                          </div>
+                        </div>
+                        <div className="flex items-start gap-2">
+                          <Flame className="h-4 w-4 text-primary mt-0.5 flex-shrink-0" />
+                          <div>
+                            <div className="font-medium">Daily Streaks</div>
+                            <div className="text-xs text-muted-foreground">Bonus multipliers</div>
+                          </div>
+                        </div>
+                        <div className="flex items-start gap-2">
+                          <Star className="h-4 w-4 text-primary mt-0.5 flex-shrink-0" />
+                          <div>
+                            <div className="font-medium">Special Events</div>
+                            <div className="text-xs text-muted-foreground">Limited-time bonuses</div>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </DialogContent>
+              </Dialog>
             </div>
           </div>
         </Card>

@@ -297,9 +297,15 @@ export default function Rewards() {
                   <div className="text-center py-8">
                     <Loader2 className="h-6 w-6 animate-spin mx-auto" />
                   </div>
+                ) : !leaderboardData?.topUsers || leaderboardData.topUsers.length === 0 ? (
+                  <div className="text-center py-8 text-muted-foreground">
+                    <Trophy className="h-12 w-12 mx-auto mb-2 opacity-20" />
+                    <p>No users on the leaderboard yet.</p>
+                    <p className="text-sm mt-1">Be the first to earn points!</p>
+                  </div>
                 ) : (
                   <>
-                    {leaderboardData?.topUsers?.map((entry: any, index: number) => {
+                    {leaderboardData.topUsers.map((entry: any, index: number) => {
                       const TierIcon = getTierIcon(entry.tier);
                       const tierColor = getTierColor(entry.tier);
                       const isCurrentUser = entry.id === userId;
