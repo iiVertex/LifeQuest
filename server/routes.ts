@@ -1,9 +1,12 @@
 import type { Express } from "express";
 import { createServer, type Server } from "http";
 import { storage } from "./storage";
+import { supabase } from "./storage-supabase";
 import { insertUserSchema, insertUserChallengeSchema, insertSmartAdvisorInteractionSchema } from "@shared/schema";
 import authRoutes from "./auth/routes";
 import { generateStructuredResponse } from "./ai/client";
+import { BehaviorTracker } from "./services/behavior-tracker";
+import { analyzeUserOnDemand } from "./jobs/adaptive-learning";
 
 export async function registerRoutes(app: Express): Promise<Server> {
   // Health check route (only for production/API calls, not dev mode)
@@ -314,6 +317,19 @@ export async function registerRoutes(app: Express): Promise<Server> {
       });
       const challenge = await storage.createUserChallenge(challengeData);
       
+      // Track challenge acceptance for adaptive learning
+      try {
+        await BehaviorTracker.trackChallengeAccepted(
+          userId,
+          challenge.id,
+          challengeData.templateId
+        );
+        console.log('[Behavior Tracking] Challenge acceptance tracked');
+      } catch (error) {
+        console.error('Error tracking challenge acceptance:', error);
+        // Don't fail the request if tracking fails
+      }
+      
       res.status(201).json(challenge);
     } catch (error) {
       res.status(400).json({ message: "Invalid challenge data" });
@@ -436,6 +452,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
         console.log('[Streak Update]', streakUpdate.message);
       } catch (error) {
         console.error('Error updating streak:', error);
+      }
+
+      // Track challenge completion for adaptive learning
+      try {
+        await BehaviorTracker.trackChallengeCompleted(userId, req.params.challengeId);
+        await BehaviorTracker.trackProtectionScoreChange(userId, newPP);
+        console.log('[Behavior Tracking] Challenge completion and score change tracked');
+      } catch (error) {
+        console.error('Error tracking behavior:', error);
+        // Don't fail the request if tracking fails
       }
       
       res.json({ 
@@ -676,10 +702,329 @@ When showing stats: Use the EXACT numbers from their profile above.`;
         return;
       }
 
+      // Track AI interaction and trigger adaptive learning analysis
+      try {
+        // Analyze user behavior in the background (async, don't wait)
+        analyzeUserOnDemand(userId).catch(err => {
+          console.error('[AI Chat] Background analysis failed:', err);
+        });
+        console.log('[AI Chat] Triggered adaptive learning analysis for user:', userId);
+      } catch (error) {
+        console.error('[AI Chat] Error triggering analysis:', error);
+      }
+
       res.json({ response: aiResponse });
     } catch (error: any) {
       console.error("Smart Advisor chat error:", error);
       res.status(500).json({ message: "Failed to process message", error: error.message });
+    }
+  });
+
+  // AI Scenario Simulation Endpoint
+  app.post("/api/smart-advisor/simulate", async (req, res) => {
+    try {
+      const { userId, scenarioDescription, category } = req.body;
+
+      if (!userId) {
+        res.status(400).json({ message: "userId is required" });
+        return;
+      }
+
+      if (!scenarioDescription || scenarioDescription.trim() === '') {
+        res.status(400).json({ message: "Scenario description is required" });
+        return;
+      }
+
+      console.log('[AI Simulate] Starting simulation for user:', userId);
+
+      // Get user data - try by email first (from Supabase auth), then by ID
+      let user = await storage.getUserByEmail(userId);
+      if (!user) {
+        user = await storage.getUser(userId);
+      }
+      
+      if (!user) {
+        res.status(404).json({ message: "User not found" });
+        return;
+      }
+
+      // Get user behavior analytics for rate limiting
+      const analytics = await BehaviorTracker.getUserAnalytics(user.id);
+      
+      // Check rate limit (50 simulations per day)
+      const today = new Date().toISOString().split('T')[0];
+      const lastSimulationDate = analytics?.lastSimulationDate 
+        ? new Date(analytics.lastSimulationDate).toISOString().split('T')[0]
+        : null;
+      
+      const isNewDay = lastSimulationDate !== today;
+      const simulationsToday = isNewDay ? 0 : (analytics?.aiSimulationsToday || 0);
+      
+      if (simulationsToday >= 50) {
+        res.status(429).json({ 
+          message: "Daily AI simulation limit exceeded (50/day)",
+          limit: 50,
+          used: simulationsToday,
+          resetAt: new Date(new Date().setHours(24, 0, 0, 0)).toISOString()
+        });
+        return;
+      }
+
+      // Check protection points
+      const ppCost = 10;
+      const currentPP = (user as any).life_protection_score || 0;
+      
+      if (currentPP < ppCost) {
+        res.status(400).json({
+          message: `Insufficient Protection Points. Required: ${ppCost} PP`,
+          required: ppCost,
+          current: currentPP
+        });
+        return;
+      }
+
+      // Deduct protection points BEFORE AI call
+      await storage.updateUser(user.id, {
+        life_protection_score: currentPP - ppCost
+      } as any);
+      console.log('[AI Simulate] Deducted', ppCost, 'PP from user');
+
+      let refundRequired = false;
+
+      try {
+        // Get all insurance plans from database
+        const { data: insurancePlans, error: plansError } = await supabase
+          .from('insurance_plans')
+          .select('*')
+          .eq('is_active', true)
+          .order('insurance_type');
+        
+        if (plansError) {
+          console.error('[AI Simulate] Error loading plans:', plansError);
+          throw new Error('Failed to load insurance plans');
+        }
+
+        console.log('[AI Simulate] Loaded', insurancePlans?.length || 0, 'insurance plans');
+
+        // Build AI prompt
+        const userAge = (user as any).age || 30;
+        const userGender = (user as any).gender || 'Not specified';
+        const userTone = (user as any).advisor_tone || 'balanced';
+        const userName = (user as any).name || 'User';
+        const userFocusAreas = (user as any).focus_areas || [];
+
+        const systemPrompt = `You are a QIC (Qatar Insurance Company) AI advisor analyzing insurance scenarios.
+
+User Profile:
+- Name: ${userName}
+- Age: ${userAge}
+- Gender: ${userGender}
+- Focus Areas: ${userFocusAreas.join(', ') || 'General'}
+- Tone Preference: ${userTone}
+
+Available QIC Insurance Plans:
+${insurancePlans.map((p: any) => `
+- ${p.plan_name} (${p.insurance_category})
+  Type: ${p.insurance_type}
+  Features: ${(p.key_features || []).join(', ')}
+  Coverages: ${JSON.stringify(p.standard_coverages)}
+`).join('\n')}
+
+TASK: Analyze the user's scenario and provide insurance recommendations.
+
+RESPONSE FORMAT (JSON only, no markdown):
+{
+  "scenarios": [
+    "Scenario 1 description with real-life risk - LifeScore impact: -{X}",
+    "Scenario 2 description with real-life risk - LifeScore impact: -{X}"
+  ],
+  "recommended_plans": [
+    {
+      "plan_id": "<exact plan ID from database>",
+      "plan_name": "<exact plan name>",
+      "insurance_type": "<motor|travel|health|home|life>",
+      "relevance_score": <1-10>,
+      "scenario_logic": "Why this plan fits the scenario",
+      "plan_scenarios": [
+        {
+          "scenario": "Specific situation this plan covers",
+          "feature": "Coverage feature that applies",
+          "lifescore_with_coverage": <positive number>,
+          "lifescore_without_coverage": <negative number>,
+          "severity": <1-10>
+        },
+        {
+          "scenario": "Another situation",
+          "feature": "Another feature",
+          "lifescore_with_coverage": <positive number>,
+          "lifescore_without_coverage": <negative number>,
+          "severity": <1-10>
+        }
+      ]
+    }
+  ],
+  "best_plan": { ...same structure as recommended_plans[0] },
+  "narrative": "2-3 sentences explaining why these plans fit",
+  "lifescore_impact": <-50 to +50>,
+  "severity_score": <1-10>,
+  "risk_level": "low|medium|high"
+}
+
+RULES:
+1. Generate EXACTLY 2 realistic scenarios with LifeScore impacts (-1 to -15)
+2. Match plans from the database by plan_id
+3. Each plan needs EXACTLY 2 plan_scenarios
+4. Use Protection Score terminology (not LifeScore in narratives)
+5. Be specific to Qatar/GCC context
+6. Focus on REAL insurance value, not just gamification`;
+
+        const userPrompt = `Scenario: "${scenarioDescription}"
+Category: ${category || 'Auto-detect'}
+
+Analyze this scenario and recommend suitable QIC insurance plans.`;
+
+        console.log('[AI Simulate] Calling DeepSeek AI...');
+
+        // Call DeepSeek AI
+        const aiResponse = await generateStructuredResponse<any>(
+          systemPrompt,
+          userPrompt,
+          { temperature: 0.7, maxTokens: 1000 }
+        );
+
+        if (!aiResponse) {
+          throw new Error('Empty response from AI');
+        }
+
+        console.log('[AI Simulate] AI response received');
+
+        // Validate and enhance response
+        const scenarios = aiResponse.scenarios || [
+          `${scenarioDescription} could lead to unexpected costs - LifeScore impact: -8`,
+          'Without proper coverage, you face financial risk - LifeScore impact: -6'
+        ];
+
+        // Ensure we have recommended plans
+        let recommendedPlans = aiResponse.recommended_plans || [];
+        
+        // If AI didn't provide plans, match based on category
+        if (recommendedPlans.length === 0 && category) {
+          const matchingPlans = insurancePlans.filter(
+            (p: any) => p.insurance_type === category
+          ).slice(0, 2);
+          
+          recommendedPlans = matchingPlans.map((p: any) => ({
+            plan_id: p.id,
+            plan_name: p.plan_name,
+            insurance_type: p.insurance_type,
+            relevance_score: 7,
+            scenario_logic: `This plan provides coverage for ${category} scenarios`,
+            plan_scenarios: [
+              {
+                scenario: "Unexpected situation coverage",
+                feature: p.key_features?.[0] || "Basic Coverage",
+                lifescore_with_coverage: 5,
+                lifescore_without_coverage: -5,
+                severity: 5
+              },
+              {
+                scenario: "Financial protection scenario",
+                feature: p.key_features?.[1] || "Protection",
+                lifescore_with_coverage: 6,
+                lifescore_without_coverage: -6,
+                severity: 6
+              }
+            ]
+          }));
+        }
+
+        const bestPlan = aiResponse.best_plan || recommendedPlans[0] || null;
+
+        // Store simulation in history
+        const { error: historyError } = await supabase
+          .from('ai_simulation_history')
+          .insert({
+            user_id: user.id,
+            scenario_description: scenarioDescription,
+            category: category || null,
+            scenarios: scenarios,
+            recommended_plans: recommendedPlans,
+            best_plan_id: bestPlan?.plan_id || null,
+            narrative: aiResponse.narrative || 'AI recommendation generated',
+            lifescore_impact: aiResponse.lifescore_impact || -10,
+            severity_score: aiResponse.severity_score || 5,
+            risk_level: aiResponse.risk_level || 'medium',
+            protection_points_spent: ppCost
+          });
+
+        if (historyError) {
+          console.error('[AI Simulate] Error saving history:', historyError);
+        }
+
+        // Update analytics
+        const today = new Date().toISOString().split('T')[0];
+        const isNewDay = !analytics?.lastSimulationDate || 
+          new Date(analytics.lastSimulationDate).toISOString().split('T')[0] !== today;
+        
+        const { error: analyticsError } = await supabase
+          .from('user_behavior_analytics')
+          .update({
+            ai_simulations_count: (analytics?.aiSimulationsCount || 0) + 1,
+            ai_simulations_today: isNewDay ? 1 : (analytics?.aiSimulationsToday || 0) + 1,
+            last_simulation_date: new Date().toISOString(),
+            updated_at: new Date().toISOString()
+          })
+          .eq('user_id', user.id);
+
+        if (analyticsError) {
+          console.error('[AI Simulate] Error updating analytics:', analyticsError);
+        }
+
+        console.log('[AI Simulate] Simulation saved to history');
+
+        // Trigger adaptive learning analysis
+        analyzeUserOnDemand(user.id).catch(err => {
+          console.error('[AI Simulate] Background analysis failed:', err);
+        });
+
+        // Return successful response
+        res.json({
+          success: true,
+          data: {
+            scenarios,
+            recommended_plans: recommendedPlans,
+            best_plan: bestPlan,
+            narrative: aiResponse.narrative,
+            lifescore_impact: aiResponse.lifescore_impact,
+            severity_score: aiResponse.severity_score,
+            risk_level: aiResponse.risk_level,
+            protection_points_spent: ppCost,
+            simulated_at: new Date().toISOString()
+          }
+        });
+
+      } catch (aiError: any) {
+        console.error('[AI Simulate] AI call failed:', aiError);
+        
+        // Refund protection points on failure
+        refundRequired = true;
+        await storage.updateUser(user.id, {
+          life_protection_score: currentPP
+        } as any);
+        console.log('[AI Simulate] Refunded', ppCost, 'PP due to error');
+
+        res.status(500).json({
+          message: 'AI simulation failed',
+          error: aiError.message
+        });
+      }
+
+    } catch (error: any) {
+      console.error('[AI Simulate] Simulation error:', error);
+      res.status(500).json({ 
+        message: "Failed to simulate scenario", 
+        error: error.message 
+      });
     }
   });
 
@@ -1088,6 +1433,16 @@ RESPOND WITH ONLY THIS JSON (no markdown, no code blocks):
       await storage.updateUser(user.id, { 
         life_protection_score: newPoints 
       } as any);
+
+      // Track reward redemption for adaptive learning
+      try {
+        await BehaviorTracker.trackRewardRedemption(user.id);
+        await BehaviorTracker.trackProtectionScoreChange(user.id, newPoints);
+        console.log('[Behavior Tracking] Reward redemption tracked');
+      } catch (error) {
+        console.error('Error tracking reward redemption:', error);
+        // Don't fail the request if tracking fails
+      }
       
       res.json({
         success: true,
@@ -1099,6 +1454,406 @@ RESPOND WITH ONLY THIS JSON (no markdown, no code blocks):
     } catch (error: any) {
       console.error('Error redeeming points:', error);
       res.status(500).json({ message: 'Failed to redeem points' });
+    }
+  });
+
+  // ═══════════════════════════════════════════════════════════════════════
+  // BEHAVIOR TRACKING & ADAPTIVE LEARNING ROUTES
+  // ═══════════════════════════════════════════════════════════════════════
+
+  // Start a new session
+  app.post("/api/behavior/session/start", async (req, res) => {
+    try {
+      const { userId } = req.body;
+      
+      if (!userId) {
+        return res.status(400).json({ message: "userId is required" });
+      }
+
+      // Initialize analytics if needed
+      let analytics = await BehaviorTracker.getUserAnalytics(userId);
+      if (!analytics) {
+        analytics = await BehaviorTracker.initializeUserAnalytics(userId);
+      }
+
+      const session = await BehaviorTracker.startSession(userId);
+      
+      res.json({
+        success: true,
+        sessionId: session.id,
+        message: "Session started"
+      });
+    } catch (error: any) {
+      console.error('Error starting session:', error);
+      res.status(500).json({ message: 'Failed to start session' });
+    }
+  });
+
+  // End a session
+  app.post("/api/behavior/session/end", async (req, res) => {
+    try {
+      const { sessionId } = req.body;
+      
+      if (!sessionId) {
+        return res.status(400).json({ message: "sessionId is required" });
+      }
+
+      await BehaviorTracker.endSession(sessionId);
+      
+      res.json({
+        success: true,
+        message: "Session ended"
+      });
+    } catch (error: any) {
+      console.error('Error ending session:', error);
+      res.status(500).json({ message: 'Failed to end session' });
+    }
+  });
+
+  // Track action in session
+  app.post("/api/behavior/session/action", async (req, res) => {
+    try {
+      const { sessionId } = req.body;
+      
+      if (!sessionId) {
+        return res.status(400).json({ message: "sessionId is required" });
+      }
+
+      await BehaviorTracker.trackAction(sessionId);
+      
+      res.json({ success: true });
+    } catch (error: any) {
+      console.error('Error tracking action:', error);
+      res.status(500).json({ message: 'Failed to track action' });
+    }
+  });
+
+  // Get user behavior analytics
+  app.get("/api/behavior/analytics/:userId", async (req, res) => {
+    try {
+      const { userId } = req.params;
+      
+      const analytics = await BehaviorTracker.getUserAnalytics(userId);
+      
+      if (!analytics) {
+        return res.status(404).json({ message: "Analytics not found" });
+      }
+
+      res.json(analytics);
+    } catch (error: any) {
+      console.error('Error fetching analytics:', error);
+      res.status(500).json({ message: 'Failed to fetch analytics' });
+    }
+  });
+
+  // Trigger on-demand AI analysis
+  app.post("/api/behavior/analyze/:userId", async (req, res) => {
+    try {
+      const { userId } = req.params;
+      
+      await analyzeUserOnDemand(userId);
+      
+      // Get updated analytics
+      const analytics = await BehaviorTracker.getUserAnalytics(userId);
+      
+      res.json({
+        success: true,
+        message: "Analysis completed",
+        insights: analytics?.aiInsights || {}
+      });
+    } catch (error: any) {
+      console.error('Error analyzing user:', error);
+      res.status(500).json({ message: 'Failed to analyze user behavior' });
+    }
+  });
+
+  // ===== Bundle & Save Routes =====
+  
+  // Get all insurance plans for bundle selection
+  app.get("/api/bundles/insurance-plans", async (req, res) => {
+    try {
+      console.log('[GET /api/bundles/insurance-plans] Fetching insurance plans');
+      
+      const { data: plans, error } = await supabase
+        .from('insurance_plans')
+        .select('id, plan_name, insurance_type, description, base_price_qar')
+        .eq('is_active', true)
+        .order('insurance_type', { ascending: true })
+        .order('plan_name', { ascending: true });
+
+      if (error) throw error;
+
+      // Map to expected frontend format
+      const formattedPlans = (plans || []).map(plan => ({
+        id: plan.id,
+        name: plan.plan_name,
+        category: plan.insurance_type,
+        description: plan.description,
+        base_price: plan.base_price_qar.toString()
+      }));
+
+      res.json(formattedPlans);
+    } catch (error: any) {
+      console.error('Error fetching insurance plans:', error);
+      res.status(500).json({ message: 'Failed to fetch insurance plans' });
+    }
+  });
+
+  // Calculate bundle quote (no save, no PP deduction)
+  app.post("/api/bundles/calculate-quote", async (req, res) => {
+    try {
+      const { userId, productIds } = req.body;
+
+      if (!productIds || !Array.isArray(productIds) || productIds.length === 0) {
+        return res.status(400).json({ message: 'At least one product must be selected' });
+      }
+
+      console.log('[POST /api/bundles/calculate-quote] Calculating quote for user:', userId);
+
+      // Get user to check protection points
+      let user = await storage.getUserByEmail(userId);
+      if (!user) {
+        user = await storage.getUser(userId);
+      }
+      if (!user) {
+        return res.status(404).json({ message: 'User not found' });
+      }
+
+      const lifeProtectionScore = (user as any).life_protection_score || 0;
+
+      // Get selected insurance plans
+      const { data: plans, error } = await supabase
+        .from('insurance_plans')
+        .select('*')
+        .in('id', productIds);
+
+      if (error) throw error;
+      if (!plans || plans.length === 0) {
+        return res.status(404).json({ message: 'No insurance plans found' });
+      }
+
+      // Calculate original price
+      const originalPrice = plans.reduce((sum, plan) => sum + parseFloat(plan.base_price), 0);
+
+      // Calculate bundle discount based on number of products and combinations
+      let bundleDiscountPercent = 0;
+      const productCount = plans.length;
+
+      if (productCount >= 2) {
+        // Base discount by count
+        if (productCount === 2) bundleDiscountPercent = 10;
+        else if (productCount === 3) bundleDiscountPercent = 15;
+        else if (productCount === 4) bundleDiscountPercent = 20;
+        else if (productCount >= 5) bundleDiscountPercent = 25;
+
+        // Bonus for specific combinations
+        const categories = plans.map(p => p.category);
+        const hasMotor = categories.includes('motor');
+        const hasTravel = categories.includes('travel');
+        const hasHealth = categories.includes('health');
+        const hasHome = categories.includes('home');
+
+        // Motor + Travel combo bonus
+        if (hasMotor && hasTravel) bundleDiscountPercent += 2;
+        // Health + Home combo bonus
+        if (hasHealth && hasHome) bundleDiscountPercent += 2;
+        // Full coverage bonus (all 4 categories)
+        if (hasMotor && hasTravel && hasHealth && hasHome) bundleDiscountPercent += 3;
+
+        // Cap at 25%
+        bundleDiscountPercent = Math.min(bundleDiscountPercent, 25);
+      }
+
+      const bundleDiscountAmount = (originalPrice * bundleDiscountPercent) / 100;
+      const priceAfterBundleDiscount = originalPrice - bundleDiscountAmount;
+
+      // Calculate PP discount (1% per 10 points, max 20%)
+      const ppDiscountPercent = Math.min(Math.floor(lifeProtectionScore / 10), 20);
+      const ppDiscountAmount = (priceAfterBundleDiscount * ppDiscountPercent) / 100;
+      
+      // Calculate PP points that would be used (10 points per 1% discount)
+      const ppPointsToUse = ppDiscountPercent * 10;
+
+      const finalPrice = priceAfterBundleDiscount - ppDiscountAmount;
+
+      res.json({
+        products: plans,
+        originalPrice: parseFloat(originalPrice.toFixed(2)),
+        bundleDiscountPercent: parseFloat(bundleDiscountPercent.toFixed(2)),
+        bundleDiscountAmount: parseFloat(bundleDiscountAmount.toFixed(2)),
+        priceAfterBundleDiscount: parseFloat(priceAfterBundleDiscount.toFixed(2)),
+        ppDiscountPercent: parseFloat(ppDiscountPercent.toFixed(2)),
+        ppDiscountAmount: parseFloat(ppDiscountAmount.toFixed(2)),
+        ppPointsToUse,
+        finalPrice: parseFloat(finalPrice.toFixed(2)),
+        userProtectionScore: lifeProtectionScore
+      });
+
+    } catch (error: any) {
+      console.error('Error calculating quote:', error);
+      res.status(500).json({ message: 'Failed to calculate quote' });
+    }
+  });
+
+  // Save bundle and deduct protection points
+  app.post("/api/bundles/save", async (req, res) => {
+    try {
+      const { userId, bundleName, productIds } = req.body;
+
+      if (!bundleName || !productIds || !Array.isArray(productIds) || productIds.length === 0) {
+        return res.status(400).json({ message: 'Bundle name and at least one product are required' });
+      }
+
+      console.log('[POST /api/bundles/save] Saving bundle for user:', userId);
+
+      // Get user
+      let user = await storage.getUserByEmail(userId);
+      if (!user) {
+        user = await storage.getUser(userId);
+      }
+      if (!user) {
+        return res.status(404).json({ message: 'User not found' });
+      }
+
+      const lifeProtectionScore = (user as any).life_protection_score || 0;
+
+      // Get selected insurance plans
+      const { data: plans, error: plansError } = await supabase
+        .from('insurance_plans')
+        .select('*')
+        .in('id', productIds);
+
+      if (plansError) throw plansError;
+      if (!plans || plans.length === 0) {
+        return res.status(404).json({ message: 'No insurance plans found' });
+      }
+
+      // Calculate prices (same logic as quote)
+      const originalPrice = plans.reduce((sum, plan) => sum + parseFloat(plan.base_price), 0);
+
+      let bundleDiscountPercent = 0;
+      const productCount = plans.length;
+
+      if (productCount >= 2) {
+        if (productCount === 2) bundleDiscountPercent = 10;
+        else if (productCount === 3) bundleDiscountPercent = 15;
+        else if (productCount === 4) bundleDiscountPercent = 20;
+        else if (productCount >= 5) bundleDiscountPercent = 25;
+
+        const categories = plans.map(p => p.category);
+        const hasMotor = categories.includes('motor');
+        const hasTravel = categories.includes('travel');
+        const hasHealth = categories.includes('health');
+        const hasHome = categories.includes('home');
+
+        if (hasMotor && hasTravel) bundleDiscountPercent += 2;
+        if (hasHealth && hasHome) bundleDiscountPercent += 2;
+        if (hasMotor && hasTravel && hasHealth && hasHome) bundleDiscountPercent += 3;
+
+        bundleDiscountPercent = Math.min(bundleDiscountPercent, 25);
+      }
+
+      const bundleDiscountAmount = (originalPrice * bundleDiscountPercent) / 100;
+      const priceAfterBundleDiscount = originalPrice - bundleDiscountAmount;
+
+      const ppDiscountPercent = Math.min(Math.floor(lifeProtectionScore / 10), 20);
+      const ppDiscountAmount = (priceAfterBundleDiscount * ppDiscountPercent) / 100;
+      const ppPointsToUse = ppDiscountPercent * 10;
+
+      // Check if user has enough protection points
+      if (lifeProtectionScore < ppPointsToUse) {
+        return res.status(400).json({ 
+          message: `Insufficient Protection Points. You need ${ppPointsToUse} points but only have ${lifeProtectionScore}.`,
+          required: ppPointsToUse,
+          available: lifeProtectionScore
+        });
+      }
+
+      const finalPrice = priceAfterBundleDiscount - ppDiscountAmount;
+
+      // Start transaction: Save bundle and deduct PP
+      const { data: bundle, error: bundleError } = await supabase
+        .from('user_bundles')
+        .insert({
+          user_id: user.id,
+          bundle_name: bundleName,
+          selected_products: plans.map(p => ({
+            id: p.id,
+            name: p.name,
+            category: p.category,
+            price: p.base_price
+          })),
+          original_price: originalPrice.toFixed(2),
+          bundle_discount_percent: bundleDiscountPercent.toFixed(2),
+          bundle_discount_amount: bundleDiscountAmount.toFixed(2),
+          pp_discount_percent: ppDiscountPercent.toFixed(2),
+          pp_discount_amount: ppDiscountAmount.toFixed(2),
+          pp_points_used: ppPointsToUse,
+          final_price: finalPrice.toFixed(2),
+          status: 'active'
+        })
+        .select()
+        .single();
+
+      if (bundleError) throw bundleError;
+
+      // Deduct protection points
+      const newProtectionScore = lifeProtectionScore - ppPointsToUse;
+      const { error: updateError } = await supabase
+        .from('users')
+        .update({ life_protection_score: newProtectionScore })
+        .eq('id', user.id);
+
+      if (updateError) {
+        // Rollback: delete the bundle if PP deduction fails
+        await supabase.from('user_bundles').delete().eq('id', bundle.id);
+        throw updateError;
+      }
+
+      console.log(`[BUNDLE SAVED] User ${user.id} saved bundle "${bundleName}", deducted ${ppPointsToUse} PP (${lifeProtectionScore} → ${newProtectionScore})`);
+
+      res.json({
+        success: true,
+        bundle,
+        pointsDeducted: ppPointsToUse,
+        newProtectionScore,
+        message: `Bundle saved! ${ppPointsToUse} Protection Points deducted.`
+      });
+
+    } catch (error: any) {
+      console.error('Error saving bundle:', error);
+      res.status(500).json({ message: 'Failed to save bundle' });
+    }
+  });
+
+  // Get user's saved bundles
+  app.get("/api/bundles/user/:userId", async (req, res) => {
+    try {
+      const { userId } = req.params;
+
+      console.log('[GET /api/bundles/user/:userId] Fetching bundles for user:', userId);
+
+      // Get user
+      let user = await storage.getUserByEmail(userId);
+      if (!user) {
+        user = await storage.getUser(userId);
+      }
+      if (!user) {
+        return res.status(404).json({ message: 'User not found' });
+      }
+
+      const { data: bundles, error } = await supabase
+        .from('user_bundles')
+        .select('*')
+        .eq('user_id', user.id)
+        .order('created_at', { ascending: false });
+
+      if (error) throw error;
+
+      res.json(bundles || []);
+    } catch (error: any) {
+      console.error('Error fetching user bundles:', error);
+      res.status(500).json({ message: 'Failed to fetch bundles' });
     }
   });
 

@@ -13,7 +13,7 @@ interface MissionCardProps {
 }
 
 const categoryColors = {
-  driving: "hsl(210 75% 52%)",
+  driving: "hsl(239 89% 68%)",
   health: "hsl(122 39% 49%)",
   financial: "hsl(45 100% 50%)",
 };

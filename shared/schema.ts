@@ -126,6 +126,73 @@ export const smartAdvisorInteractions = pgTable("smart_advisor_interactions", {
   createdAt: timestamp("created_at").default(sql`now()`),
 });
 
+// User behavior analytics for AI adaptive learning
+export const userBehaviorAnalytics = pgTable("user_behavior_analytics", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  userId: varchar("user_id").notNull().references(() => users.id),
+  
+  // Challenge interaction patterns
+  challengePreferences: jsonb("challenge_preferences").$type<{
+    preferredCategories: Record<string, number>; // category -> count
+    preferredDifficulties: Record<string, number>; // difficulty -> count
+    preferredTypes: Record<string, number>; // type -> count
+  }>().default({ preferredCategories: {}, preferredDifficulties: {}, preferredTypes: {} }),
+  
+  // Completion metrics
+  totalChallengesAccepted: integer("total_challenges_accepted").default(0),
+  totalChallengesCompleted: integer("total_challenges_completed").default(0),
+  totalChallengesAbandoned: integer("total_challenges_abandoned").default(0),
+  averageCompletionTime: real("average_completion_time").default(0), // in hours
+  completionRate: real("completion_rate").default(0), // 0-100
+  
+  // Session data
+  totalSessions: integer("total_sessions").default(0),
+  totalTimeSpent: integer("total_time_spent").default(0), // in minutes
+  averageSessionDuration: real("average_session_duration").default(0), // in minutes
+  lastSessionDate: timestamp("last_session_date"),
+  
+  // Protection score progression
+  protectionScoreHistory: jsonb("protection_score_history").$type<Array<{
+    score: number;
+    date: string;
+  }>>().default([]),
+  averageScoreChange: real("average_score_change").default(0), // points per week
+  
+  // Reward patterns
+  totalRewardsRedeemed: integer("total_rewards_redeemed").default(0),
+  rewardRedemptionFrequency: real("reward_redemption_frequency").default(0), // times per month
+  
+  // AI learning metadata
+  lastAnalyzedAt: timestamp("last_analyzed_at"),
+  aiInsights: jsonb("ai_insights").$type<{
+    recommendedDifficulty?: string;
+    recommendedCategories?: string[];
+    recommendedTone?: string;
+    engagementPattern?: string;
+    notes?: string;
+  }>().default({}),
+  
+  // AI Simulation tracking
+  aiSimulationsCount: integer("ai_simulations_count").default(0),
+  aiSimulationsToday: integer("ai_simulations_today").default(0),
+  lastSimulationDate: timestamp("last_simulation_date"),
+  
+  // Timestamps
+  createdAt: timestamp("created_at").default(sql`now()`),
+  updatedAt: timestamp("updated_at").default(sql`now()`),
+});
+
+// Session tracking for behavior analytics
+export const userSessions = pgTable("user_sessions", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  userId: varchar("user_id").notNull().references(() => users.id),
+  startTime: timestamp("start_time").default(sql`now()`),
+  endTime: timestamp("end_time"),
+  duration: integer("duration"), // in minutes
+  actionsCount: integer("actions_count").default(0),
+  createdAt: timestamp("created_at").default(sql`now()`),
+});
+
 // Schema validation
 export const insertUserSchema = createInsertSchema(users).pick({
   username: true,
@@ -152,6 +219,9 @@ export const insertSmartAdvisorInteractionSchema = createInsertSchema(smartAdvis
   context: true,
 });
 
+export const insertUserBehaviorAnalyticsSchema = createInsertSchema(userBehaviorAnalytics);
+export const insertUserSessionSchema = createInsertSchema(userSessions);
+
 // Additional insert schemas
 export const insertUserChallengeSchemaFull = createInsertSchema(userChallenges);
 export const insertSmartAdvisorInteractionSchemaFull = createInsertSchema(smartAdvisorInteractions);
@@ -160,6 +230,8 @@ export const insertSmartAdvisorInteractionSchemaFull = createInsertSchema(smartA
 export type InsertUser = z.infer<typeof insertUserSchema>;
 export type InsertUserChallenge = z.infer<typeof insertUserChallengeSchema>;
 export type InsertSmartAdvisorInteraction = z.infer<typeof insertSmartAdvisorInteractionSchema>;
+export type InsertUserBehaviorAnalytics = z.infer<typeof insertUserBehaviorAnalyticsSchema>;
+export type InsertUserSession = z.infer<typeof insertUserSessionSchema>;
 export type User = typeof users.$inferSelect;
 export type UserChallenge = typeof userChallenges.$inferSelect;
 export type ChallengeTemplate = typeof challengeTemplates.$inferSelect;
@@ -168,3 +240,5 @@ export type UserSkillNode = typeof userSkillNodes.$inferSelect;
 export type Milestone = typeof milestones.$inferSelect;
 export type UserMilestone = typeof userMilestones.$inferSelect;
 export type SmartAdvisorInteraction = typeof smartAdvisorInteractions.$inferSelect;
+export type UserBehaviorAnalytics = typeof userBehaviorAnalytics.$inferSelect;
+export type UserSession = typeof userSessions.$inferSelect;

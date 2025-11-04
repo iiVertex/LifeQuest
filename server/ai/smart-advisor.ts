@@ -1,9 +1,11 @@
 import { generateStructuredResponse, generateAIResponse } from './client';
+import { BehaviorTracker } from '../services/behavior-tracker';
 import type { User } from '@shared/schema';
 
 /**
  * QIC LifeQuest Smart Advisor
  * Powered by DeepSeek AI - Generates personalized insurance challenges and nudges
+ * Now with adaptive learning based on user behavior analytics
  */
 
 export interface UserContext {
@@ -36,19 +38,40 @@ export interface AdvisorNudge {
 }
 
 /**
- * Generate personalized challenge based on user context
+ * Generate personalized challenge based on user context with adaptive learning
  */
 export async function generatePersonalizedChallenge(
   context: UserContext
 ): Promise<SmartAdvisorResponse | null> {
+  // Get user's behavior analytics for adaptive personalization
+  const analytics = await BehaviorTracker.getUserAnalytics(context.userId);
+  const aiInsights = analytics?.aiInsights || {};
+
+  // Use AI-learned preferences or fall back to user preferences
+  const adaptiveTone = aiInsights.recommendedTone || context.preferredTone;
+  const recommendedCategories = aiInsights.recommendedCategories || context.activePolicies;
+  const recommendedDifficulty = aiInsights.recommendedDifficulty || 'Medium';
+  const engagementPattern = aiInsights.engagementPattern || context.engagementLevel;
+
   const systemPrompt = `You are QIC's Smart Advisor, an AI assistant helping users improve their insurance protection score.
 
 Your role:
 - Generate personalized challenges based on user's active policies and engagement
 - Suggest relevant insurance actions with clear rewards
-- Match the user's preferred communication tone (${context.preferredTone})
+- Match the user's preferred communication tone (${adaptiveTone})
 - Respond in ${context.language === 'ar' ? 'Arabic' : 'English'} language
 - Focus on real insurance value, not just gamification
+
+ADAPTIVE LEARNING INSIGHTS:
+${analytics ? `
+- AI-Recommended Tone: ${adaptiveTone}
+- Preferred Categories: ${recommendedCategories.join(', ')}
+- Recommended Difficulty: ${recommendedDifficulty}
+- Engagement Pattern: ${engagementPattern}
+- Completion Rate: ${analytics.completionRate?.toFixed(1)}%
+- Average Session Duration: ${analytics.averageSessionDuration?.toFixed(1)} minutes
+- Notes: ${aiInsights.notes || 'No specific notes'}
+` : 'No learning data yet - this is a new user'}
 
 Tone Guidelines:
 - STRICT: Direct, performance-focused, accountability-driven. "Your motor policy expires soon. Renew now to maintain coverage."
@@ -66,12 +89,19 @@ CRITICAL: You must respond ONLY with valid JSON. No explanations, no markdown, j
 - Engagement Level: ${context.engagementLevel}
 - Streak: ${context.streakDays} days
 
+ADAPTIVE PREFERENCES:
+- Preferred Tone: ${adaptiveTone}
+- Focus Categories: ${recommendedCategories.join(', ')}
+- Suitable Difficulty: ${recommendedDifficulty}
+
 Generate ONE personalized challenge with:
-1. A ${context.preferredTone} tone message (1-2 sentences max)
+1. A ${adaptiveTone} tone message (1-2 sentences max)
 2. Challenge type (policy_renewal, safety_check, referral, education, or milestone)
-3. Engagement points reward (50-200 based on difficulty)
+3. Engagement points reward (Easy: 50-75, Medium: 100-150, Hard: 175-200)
 4. Optional badge name if it's a milestone
 5. Priority (low/medium/high based on urgency)
+
+Focus on categories: ${recommendedCategories.slice(0, 2).join(' or ')}
 
 Respond with ONLY this JSON structure:
 {
@@ -107,12 +137,16 @@ Respond with ONLY this JSON structure:
 }
 
 /**
- * Generate Smart Advisor nudge/message based on user stage
+ * Generate Smart Advisor nudge/message based on user stage with adaptive learning
  */
 export async function generateAdvisorNudge(
   context: UserContext,
   stage: 'week1' | 'week2-3' | 'month1+' | 'inactive'
 ): Promise<AdvisorNudge> {
+  // Get adaptive insights
+  const analytics = await BehaviorTracker.getUserAnalytics(context.userId);
+  const adaptiveTone = analytics?.aiInsights?.recommendedTone || context.preferredTone;
+  
   const stageContext = {
     'week1': 'New user (Week 1) - Focus on education and motivation. Explain benefits and build trust.',
     'week2-3': 'Engaged user (Week 2-3) - Personalize based on their active policies and progress.',
@@ -131,11 +165,17 @@ export async function generateAdvisorNudge(
 
 User Stage: ${stage}
 Context: ${stageContext[stage]}
-Tone: ${context.preferredTone}
+Tone: ${adaptiveTone} (AI-adapted based on user behavior)
 Language: ${context.language === 'ar' ? 'Arabic' : 'English'}
 
+${analytics ? `ADAPTIVE INSIGHTS:
+- Engagement Pattern: ${analytics.aiInsights?.engagementPattern || 'unknown'}
+- Completion Rate: ${analytics.completionRate?.toFixed(1)}%
+- AI Notes: ${analytics.aiInsights?.notes || 'None'}
+` : ''}
+
 Generate a SHORT (1-2 sentences) ${messageTypes[stage]} message that:
-- Matches the ${context.preferredTone} tone
+- Matches the ${adaptiveTone} tone
 - MUST be written in ${context.language === 'ar' ? 'Arabic' : 'English'}
 - References the user's protection score (${context.protectionScore}/100) or policies
 - Provides clear value and motivation

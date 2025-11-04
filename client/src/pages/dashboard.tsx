@@ -8,6 +8,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { ProgressRing } from "@/components/progress-ring";
 import { MissionCard } from "@/components/mission-card";
 import { ChallengeDetailDialog } from "@/components/challenge-detail-dialog";
+import { AISimulator } from "@/components/ai-simulator";
 import { 
   ShieldCheck, 
   TrendingUp, 
@@ -106,6 +107,7 @@ export default function Dashboard() {
   const { t, dir, language, setLanguage } = useTranslation();
   const [selectedChallenge, setSelectedChallenge] = useState<any>(null);
   const [challengeDialogOpen, setChallengeDialogOpen] = useState(false);
+  const [showSimulator, setShowSimulator] = useState(false);
   
   // API hooks
   const userId = authUser?.email || "user-123";
@@ -646,6 +648,38 @@ export default function Dashboard() {
             <Sparkles className="h-4 w-4 mr-2" />
             Chat with Smart Advisor
           </Button>
+        </Card>
+
+        {/* AI Scenario Simulator */}
+        <Card className="p-6 border-2 border-primary/20">
+          <div className="flex items-center justify-between mb-4">
+            <div className="flex items-center gap-2">
+              <div className="p-2 rounded-full bg-primary/10">
+                <Sparkles className="h-5 w-5 text-primary" />
+              </div>
+              <h2 className="text-xl font-bold">AI Scenario Simulator</h2>
+            </div>
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => setShowSimulator(!showSimulator)}
+            >
+              {showSimulator ? 'Hide' : 'Show'}
+              <ChevronRight className={`h-4 w-4 ml-1 transition-transform ${showSimulator ? 'rotate-90' : ''}`} />
+            </Button>
+          </div>
+          
+          {showSimulator && (
+            <div className="pt-4 border-t">
+              <AISimulator />
+            </div>
+          )}
+          
+          {!showSimulator && (
+            <p className="text-sm text-muted-foreground">
+              Describe any scenario and get personalized insurance recommendations powered by AI
+            </p>
+          )}
         </Card>
 
         {/* Rewards & Milestones */}

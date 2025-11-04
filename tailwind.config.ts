@@ -82,7 +82,7 @@ export default {
           offline: "rgb(156 163 175)",
         },
         focus: {
-          driving: "hsl(210 75% 52%)",
+          driving: "hsl(239 89% 68%)",
           health: "hsl(122 39% 49%)",
           financial: "hsl(45 100% 50%)",
         },

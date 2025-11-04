@@ -26,6 +26,7 @@ import { useAuth } from "@/hooks/use-auth";
 import { useUser, useReferralInfo, useLeaderboard, useRedeemPoints } from "@/hooks/use-api";
 import { useToast } from "@/hooks/use-toast";
 import { useTranslation } from "@/lib/translation-provider";
+import { BundleCalculator } from "@/components/bundle-calculator";
 
 const tierConfig = {
   bronze: {
@@ -60,12 +61,17 @@ export default function Rewards() {
   const [showAllReferrals, setShowAllReferrals] = useState(false);
   const [selectedLeaderboard, setSelectedLeaderboard] = useState<"global" | "friends">("global");
   const [redeemAmount, setRedeemAmount] = useState(50);
+  const [showAllLeaderboard, setShowAllLeaderboard] = useState(false);
+  const [activeTab, setActiveTab] = useState<"rewards" | "social">("rewards");
 
   const userId = authUser?.email || "user-123";
   const { data: user } = useUser(userId);
   const { data: referralData, isLoading: referralLoading } = useReferralInfo(userId);
   const { data: leaderboardData, isLoading: leaderboardLoading } = useLeaderboard(selectedLeaderboard, userId);
   const redeemMutation = useRedeemPoints();
+  
+  // Get the actual user ID for comparison
+  const currentUserId = (user as any)?.id;
 
   const handleCopyCode = () => {
     if (referralData?.referralCode) {
@@ -92,12 +98,12 @@ export default function Rewards() {
     );
   }
 
-  const currentPP = user?.protectionPoints || 0;
+  const currentPP = (user as any)?.life_protection_score || 0;
   const pointsAfterRedeem = currentPP - redeemAmount;
   const coinsToReceive = redeemAmount * 2;
 
   const handleRedeem = () => {
-    if (!user?.protectionPoints || user.protectionPoints < redeemAmount) {
+    if (!currentPP || currentPP < redeemAmount) {
       toast({
         title: "Insufficient Points",
         description: `You need ${redeemAmount} PP to redeem this reward`,
@@ -141,22 +147,125 @@ export default function Rewards() {
   return (
     <div className="min-h-screen pb-24 p-4 max-w-4xl mx-auto">
       <div className="space-y-6">
-        {/* Header */}
+        {/* Header with PP Balance */}
         <div className="text-center space-y-2">
           <h1 className="text-3xl font-bold flex items-center justify-center gap-2">
             <Gift className="h-8 w-8 text-primary" />
             Rewards
           </h1>
-          <p className="text-muted-foreground">Earn points, climb leaderboards, and redeem rewards</p>
+          <div className="bg-gradient-to-r from-purple-600 to-blue-600 text-white rounded-xl p-6 shadow-lg">
+            <p className="text-sm opacity-90 mb-2">Your Protection Points</p>
+            <p className="text-5xl font-bold">{currentPP} PP</p>
+            <p className="text-sm opacity-75 mt-2">Use points for discounts & rewards</p>
+          </div>
         </div>
 
+        {/* Tabs */}
+        <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as "rewards" | "social")}>
+          <TabsList className="grid w-full grid-cols-2">
+            <TabsTrigger value="rewards">
+              <Gift className="h-4 w-4 mr-2" />
+              My Rewards
+            </TabsTrigger>
+            <TabsTrigger value="social">
+              <Users className="h-4 w-4 mr-2" />
+              Social
+            </TabsTrigger>
+          </TabsList>
+
+          {/* Rewards Tab (Bundle, Redeem) */}
+          <TabsContent value="rewards" className="space-y-6 mt-6">
+            {/* Bundle & Save Section */}
+            <BundleCalculator />
+
+        {/* Redeem Points Section */}
+        <Card className="p-6">
+          <div className="space-y-4">
+            <div className="flex items-center gap-2 mb-4">
+              <Coins className="h-5 w-5 text-yellow-600" />
+              <h2 className="text-xl font-bold">Redeem Points</h2>
+            </div>
+
+            <div className="grid grid-cols-3 gap-3">
+              {[50, 100, 200].map((amount) => (
+                <Card
+                  key={amount}
+                  className={`p-4 cursor-pointer transition-all ${
+                    redeemAmount === amount
+                      ? "border-primary bg-primary/5 shadow-md"
+                      : "hover:border-primary/50"
+                  }`}
+                  onClick={() => setRedeemAmount(amount as 50 | 100 | 200)}
+                >
+                  <div className="text-center space-y-2">
+                    <div className="text-2xl font-bold">{amount} PP</div>
+                    <div className="text-xs text-muted-foreground">↓</div>
+                    <div className="text-lg font-semibold text-yellow-600">{amount * 2} Coins</div>
+                    {redeemAmount === amount && (
+                      <Check className="h-5 w-5 mx-auto text-primary" />
+                    )}
+                  </div>
+                </Card>
+              ))}
+            </div>
+
+            <div className="bg-muted/50 rounded-lg p-4 space-y-2">
+              <div className="flex justify-between text-sm">
+                <span className="text-muted-foreground">Current PP:</span>
+                <span className="font-medium">{currentPP}</span>
+              </div>
+              <div className="flex justify-between text-sm">
+                <span className="text-muted-foreground">Redeeming:</span>
+                <span className="font-medium text-red-600">-{redeemAmount}</span>
+              </div>
+              <div className="border-t pt-2 flex justify-between">
+                <span className="font-medium">After Redemption:</span>
+                <span className="font-bold">{pointsAfterRedeem} PP</span>
+              </div>
+              <div className="border-t pt-2 flex justify-between">
+                <span className="font-medium text-yellow-600">You'll Receive:</span>
+                <span className="font-bold text-yellow-600">{coinsToReceive} QIC Coins</span>
+              </div>
+            </div>
+
+            <Button
+              onClick={handleRedeem}
+              className="w-full"
+              disabled={currentPP < redeemAmount || redeemMutation.isPending}
+            >
+              {redeemMutation.isPending ? (
+                <>
+                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                  Redeeming...
+                </>
+              ) : (
+                <>
+                  <Coins className="h-4 w-4 mr-2" />
+                  Redeem {redeemAmount} PP for {coinsToReceive} Coins
+                </>
+              )}
+            </Button>
+
+            {currentPP < redeemAmount && (
+              <Alert>
+                <AlertDescription className="text-center">
+                  You need {redeemAmount - currentPP} more PP to redeem this reward
+                </AlertDescription>
+              </Alert>
+            )}
+          </div>
+        </Card>
+          </TabsContent>
+
+          {/* Social Tab (Invite Friends, Leaderboard) */}
+          <TabsContent value="social" className="space-y-6 mt-6">
         {/* Referral Section */}
         <Card className="p-6">
           <div className="space-y-4">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2">
                 <Users className="h-5 w-5 text-primary" />
-                <h2 className="text-xl font-bold">Your Referral Code</h2>
+                <h2 className="text-xl font-bold">Invite Friends</h2>
               </div>
             </div>
 
@@ -176,6 +285,14 @@ export default function Rewards() {
               </div>
             </div>
 
+            {/* Referral Rewards Info */}
+            <Alert className="bg-blue-50 border-blue-200">
+              <TrendingUp className="h-4 w-4 text-blue-600" />
+              <AlertDescription className="text-sm text-blue-800">
+                <strong>Earn Referral Points:</strong> First friend = 50 PP, then 5 PP for each additional friend
+              </AlertDescription>
+            </Alert>
+
             {/* Stats */}
             <div className="grid grid-cols-2 gap-4">
               <Card className="p-4 text-center">
@@ -186,7 +303,7 @@ export default function Rewards() {
                 <div className="text-2xl font-bold text-green-600">
                   {referralData?.referralCount ? (50 + (referralData.referralCount - 1) * 5) : 0} PP
                 </div>
-                <div className="text-sm text-muted-foreground">Points Earned</div>
+                <div className="text-sm text-muted-foreground">Referral Points Earned</div>
               </Card>
             </div>
 
@@ -278,7 +395,7 @@ export default function Rewards() {
           </div>
         </Card>
 
-        {/* Leaderboards */}
+          {/* Leaderboard Section */}
         <Card className="p-6">
           <div className="space-y-4">
             <div className="flex items-center gap-2 mb-4">
@@ -305,17 +422,19 @@ export default function Rewards() {
                   </div>
                 ) : (
                   <>
-                    {leaderboardData.topUsers.map((entry: any, index: number) => {
+                    {leaderboardData.topUsers.slice(0, showAllLeaderboard ? undefined : 5).map((entry: any, index: number) => {
                       const TierIcon = getTierIcon(entry.tier);
                       const tierColor = getTierColor(entry.tier);
-                      const isCurrentUser = entry.id === userId;
+                      const isCurrentUser = entry.id === currentUserId;
                       const medal = index === 0 ? "🥇" : index === 1 ? "🥈" : index === 2 ? "🥉" : null;
 
                       return (
                         <div
                           key={entry.id}
-                          className={`flex items-center justify-between p-3 rounded-lg ${
-                            isCurrentUser ? "bg-primary/10 border border-primary" : "bg-muted/30"
+                          className={`flex items-center justify-between p-3 rounded-lg transition-all ${
+                            isCurrentUser 
+                              ? "bg-gradient-to-r from-purple-100 to-blue-100 border-2 border-primary shadow-md" 
+                              : "bg-muted/30"
                           }`}
                         >
                           <div className="flex items-center gap-3">
@@ -328,7 +447,7 @@ export default function Rewards() {
                             <div>
                               <div className="font-medium flex items-center gap-2">
                                 {entry.name}
-                                {isCurrentUser && <Badge variant="secondary" className="text-xs">You</Badge>}
+                                {isCurrentUser && <Badge variant="secondary" className="text-xs bg-primary text-white">You</Badge>}
                               </div>
                               <div className="flex items-center gap-2 text-sm text-muted-foreground">
                                 <TierIcon className={`h-3 w-3 ${tierColor}`} />
@@ -342,6 +461,26 @@ export default function Rewards() {
                         </div>
                       );
                     })}
+
+                    {leaderboardData.topUsers.length > 5 && (
+                      <Button
+                        variant="outline"
+                        className="w-full mt-2"
+                        onClick={() => setShowAllLeaderboard(!showAllLeaderboard)}
+                      >
+                        {showAllLeaderboard ? (
+                          <>
+                            <ChevronUp className="h-4 w-4 mr-2" />
+                            Show Less
+                          </>
+                        ) : (
+                          <>
+                            <ChevronDown className="h-4 w-4 mr-2" />
+                            Show More ({leaderboardData.topUsers.length - 5} more)
+                          </>
+                        )}
+                      </Button>
+                    )}
 
                     {leaderboardData?.userRank && leaderboardData.userRank > 20 && (
                       <Alert className="mt-4">
@@ -364,13 +503,15 @@ export default function Rewards() {
                   leaderboardData.topUsers.map((entry: any, index: number) => {
                     const TierIcon = getTierIcon(entry.tier);
                     const tierColor = getTierColor(entry.tier);
-                    const isCurrentUser = entry.id === userId;
+                    const isCurrentUser = entry.id === currentUserId;
 
                     return (
                       <div
                         key={entry.id}
-                        className={`flex items-center justify-between p-3 rounded-lg ${
-                          isCurrentUser ? "bg-primary/10 border border-primary" : "bg-muted/30"
+                        className={`flex items-center justify-between p-3 rounded-lg transition-all ${
+                          isCurrentUser 
+                            ? "bg-gradient-to-r from-purple-100 to-blue-100 border-2 border-primary shadow-md" 
+                            : "bg-muted/30"
                         }`}
                       >
                         <div className="flex items-center gap-3">
@@ -381,7 +522,7 @@ export default function Rewards() {
                           <div>
                             <div className="font-medium flex items-center gap-2">
                               {entry.name}
-                              {isCurrentUser && <Badge variant="secondary" className="text-xs">You</Badge>}
+                              {isCurrentUser && <Badge variant="secondary" className="text-xs bg-primary text-white">You</Badge>}
                             </div>
                             <div className="flex items-center gap-2 text-sm text-muted-foreground">
                               <TierIcon className={`h-3 w-3 ${tierColor}`} />
@@ -407,89 +548,8 @@ export default function Rewards() {
             </Tabs>
           </div>
         </Card>
-
-        {/* Redemption Section */}
-        <Card className="p-6">
-          <div className="space-y-4">
-            <div className="flex items-center gap-2 mb-4">
-              <Coins className="h-5 w-5 text-yellow-600" />
-              <h2 className="text-xl font-bold">Redeem Points</h2>
-            </div>
-
-            <div className="text-center mb-4">
-              <div className="text-sm text-muted-foreground mb-2">Your Protection Points</div>
-              <div className="text-4xl font-bold text-primary">{currentPP} PP</div>
-            </div>
-
-            <div className="grid grid-cols-3 gap-3">
-              {[50, 100, 200].map((amount) => (
-                <Card
-                  key={amount}
-                  className={`p-4 cursor-pointer transition-all ${
-                    redeemAmount === amount
-                      ? "border-primary bg-primary/5 shadow-md"
-                      : "hover:border-primary/50"
-                  }`}
-                  onClick={() => setRedeemAmount(amount as 50 | 100 | 200)}
-                >
-                  <div className="text-center space-y-2">
-                    <div className="text-2xl font-bold">{amount} PP</div>
-                    <div className="text-xs text-muted-foreground">↓</div>
-                    <div className="text-lg font-semibold text-yellow-600">{amount * 2} Coins</div>
-                    {redeemAmount === amount && (
-                      <Check className="h-5 w-5 mx-auto text-primary" />
-                    )}
-                  </div>
-                </Card>
-              ))}
-            </div>
-
-            <div className="bg-muted/50 rounded-lg p-4 space-y-2">
-              <div className="flex justify-between text-sm">
-                <span className="text-muted-foreground">Current PP:</span>
-                <span className="font-medium">{currentPP}</span>
-              </div>
-              <div className="flex justify-between text-sm">
-                <span className="text-muted-foreground">Redeeming:</span>
-                <span className="font-medium text-red-600">-{redeemAmount}</span>
-              </div>
-              <div className="border-t pt-2 flex justify-between">
-                <span className="font-medium">After Redemption:</span>
-                <span className="font-bold">{pointsAfterRedeem} PP</span>
-              </div>
-              <div className="border-t pt-2 flex justify-between">
-                <span className="font-medium text-yellow-600">You'll Receive:</span>
-                <span className="font-bold text-yellow-600">{coinsToReceive} QIC Coins</span>
-              </div>
-            </div>
-
-            <Button
-              onClick={handleRedeem}
-              className="w-full"
-              disabled={currentPP < redeemAmount || redeemMutation.isPending}
-            >
-              {redeemMutation.isPending ? (
-                <>
-                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                  Redeeming...
-                </>
-              ) : (
-                <>
-                  <Coins className="h-4 w-4 mr-2" />
-                  Redeem {redeemAmount} PP for {coinsToReceive} Coins
-                </>
-              )}
-            </Button>
-
-            {currentPP < redeemAmount && (
-              <Alert>
-                <AlertDescription className="text-center">
-                  You need {redeemAmount - currentPP} more PP to redeem this reward
-                </AlertDescription>
-              </Alert>
-            )}
-          </div>
-        </Card>
+          </TabsContent>
+        </Tabs>
       </div>
     </div>
   );
