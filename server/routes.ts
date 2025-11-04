@@ -770,24 +770,12 @@ When showing stats: Use the EXACT numbers from their profile above.`;
         return;
       }
 
-      // Check protection points
-      const ppCost = 10;
+      // Simulations are now FREE - no PP cost anymore
+      const ppCost = 0;
       const currentPP = (user as any).life_protection_score || 0;
-      
-      if (currentPP < ppCost) {
-        res.status(400).json({
-          message: `Insufficient Protection Points. Required: ${ppCost} PP`,
-          required: ppCost,
-          current: currentPP
-        });
-        return;
-      }
 
-      // Deduct protection points BEFORE AI call
-      await storage.updateUser(user.id, {
-        life_protection_score: currentPP - ppCost
-      } as any);
-      console.log('[AI Simulate] Deducted', ppCost, 'PP from user');
+      // NO LONGER DEDUCTING POINTS - Simulations are now free
+      console.log('[AI Simulate] Starting simulation (free, no PP cost)');
 
       let refundRequired = false;
 

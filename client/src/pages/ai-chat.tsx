@@ -375,13 +375,13 @@ export default function AIChat() {
           >
             <ArrowLeft className="h-5 w-5" />
           </Button>
-          <Avatar className="h-10 w-10 bg-gradient-to-br from-primary to-primary/60">
-            <AvatarFallback className="bg-transparent text-primary-foreground">
+          <Avatar className="h-10 w-10 bg-primary">
+            <AvatarFallback className="bg-primary text-primary-foreground">
               <Sparkles className="h-5 w-5" />
             </AvatarFallback>
           </Avatar>
           <div>
-            <h1 className="font-semibold">AI Smart <Advisor></Advisor></h1>
+            <h1 className="font-semibold">AI Smart Advisor</h1>
             <p className="text-xs text-muted-foreground">Always here to help</p>
           </div>
         </div>
