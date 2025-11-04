@@ -389,7 +389,7 @@ export default function Signup() {
           {step === 4 && (
             <>
               <div className="text-center mb-8">
-                <h2 className="text-2xl font-bold">How should your Smart Advisor communicate?</h2>
+                <h2 className="text-2xl font-bold">How should your AI Smart Advisor communicate?</h2>
                 <p className="text-muted-foreground mt-2">Choose the tone that motivates you best</p>
               </div>
               <div className="space-y-3">

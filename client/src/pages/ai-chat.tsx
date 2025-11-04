@@ -381,7 +381,7 @@ export default function AIChat() {
             </AvatarFallback>
           </Avatar>
           <div>
-            <h1 className="font-semibold">AI Life Companion</h1>
+            <h1 className="font-semibold">AI Smart <Advisor></Advisor></h1>
             <p className="text-xs text-muted-foreground">Always here to help</p>
           </div>
         </div>
