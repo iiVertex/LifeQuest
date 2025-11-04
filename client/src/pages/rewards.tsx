@@ -433,7 +433,7 @@ export default function Rewards() {
                           key={entry.id}
                           className={`flex items-center justify-between p-3 rounded-lg transition-all ${
                             isCurrentUser 
-                              ? "bg-gradient-to-r from-purple-100 to-blue-100 border-2 border-primary shadow-md" 
+                              ? "bg-gradient-to-r from-purple-100 to-blue-100 dark:from-purple-900/40 dark:to-blue-900/40 border-2 border-primary shadow-md" 
                               : "bg-muted/30"
                           }`}
                         >
@@ -510,7 +510,7 @@ export default function Rewards() {
                         key={entry.id}
                         className={`flex items-center justify-between p-3 rounded-lg transition-all ${
                           isCurrentUser 
-                            ? "bg-gradient-to-r from-purple-100 to-blue-100 border-2 border-primary shadow-md" 
+                            ? "bg-gradient-to-r from-purple-100 to-blue-100 dark:from-purple-900/40 dark:to-blue-900/40 border-2 border-primary shadow-md" 
                             : "bg-muted/30"
                         }`}
                       >
