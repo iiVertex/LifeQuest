@@ -361,8 +361,18 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
       
       const userId = (challengeData as any).user_id || (challengeData as any).userId;
-      const difficulty = (challengeData as any).difficulty || 'Easy';
-      const engagementPoints = (challengeData as any).engagement_points || (challengeData as any).engagementPoints || 10;
+      // Get engagement points from the nested challenge_templates object
+      const templateData = (challengeData as any).challenge_templates || {};
+      const difficulty = templateData.difficulty || 'Easy';
+      const engagementPoints = templateData.engagement_points || 10;
+      
+      console.log('[Challenge Complete] Challenge data:', {
+        challengeId: req.params.challengeId,
+        userId,
+        difficulty,
+        engagementPoints,
+        templateData
+      });
       
       // Get user data for daily limit checks
       const user = await storage.getUser(userId);

@@ -52,6 +52,7 @@ export interface IStorage {
   createChallenge(challenge: Partial<ChallengeTemplate>): Promise<ChallengeTemplate>;
   getActiveChallenges(userId: string): Promise<UserChallenge[]>;
   getUserChallenges(userId: string): Promise<UserChallenge[]>;
+  getUserChallenge(challengeId: string): Promise<UserChallenge | undefined>;
   createUserChallenge(userChallenge: InsertUserChallenge): Promise<UserChallenge>;
   updateChallengeProgress(challengeId: string, progress: number): Promise<UserChallenge | undefined>;
   completeChallenge(challengeId: string): Promise<UserChallenge | undefined>;
@@ -217,6 +218,31 @@ export class SupabaseStorage implements IStorage {
       return [];
     }
     return data as UserChallenge[];
+  }
+
+  async getUserChallenge(challengeId: string): Promise<UserChallenge | undefined> {
+    const { data, error } = await supabase
+      .from('user_challenges')
+      .select(`
+        *,
+        challenge_templates (
+          title,
+          description,
+          difficulty,
+          insurance_category,
+          engagement_points,
+          estimated_duration,
+          requirements
+        )
+      `)
+      .eq('id', challengeId)
+      .single();
+    
+    if (error) {
+      console.error('Error fetching user challenge:', error);
+      return undefined;
+    }
+    return data as UserChallenge;
   }
 
   async createUserChallenge(userChallenge: InsertUserChallenge): Promise<UserChallenge> {
