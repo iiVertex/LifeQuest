@@ -405,7 +405,7 @@ export default function Rewards() {
 
             <Tabs value={selectedLeaderboard} onValueChange={(v) => setSelectedLeaderboard(v as "global" | "friends")}>
               <TabsList className="grid w-full grid-cols-2">
-                <TabsTrigger value="global">Qatar Top 20</TabsTrigger>
+                <TabsTrigger value="global">Qatar Top 5</TabsTrigger>
                 <TabsTrigger value="friends">Friends</TabsTrigger>
               </TabsList>
 

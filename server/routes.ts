@@ -397,8 +397,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
       let currentDailyChallenges = isNewDay ? 0 : dailyChallengesCompleted;
       let currentDailyPP = isNewDay ? 0 : dailyPPEarned;
 
-      // Enforce daily challenge limit (3 challenges per day)
-      const DAILY_CHALLENGE_LIMIT = 2;
+      // Enforce daily challenge limit (5 challenges per day)
+      const DAILY_CHALLENGE_LIMIT = 5;
       if (currentDailyChallenges >= DAILY_CHALLENGE_LIMIT) {
         res.status(429).json({ 
           message: `Daily challenge limit reached! You can complete ${DAILY_CHALLENGE_LIMIT} challenges per day. Come back tomorrow!`,
@@ -414,8 +414,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // NEW SCALE: 0-1000 PP total
       const ppEarned = engagementPoints;
       
-      // Enforce daily PP cap (50 max per day)
-      const DAILY_PP_CAP = 50;
+      // Enforce daily PP cap (increased to 1000 for testing)
+      const DAILY_PP_CAP = 1000;
       const ppToAward = Math.min(ppEarned, DAILY_PP_CAP - currentDailyPP);
 
       if (ppToAward <= 0) {
