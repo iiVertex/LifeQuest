@@ -15,7 +15,7 @@ AI-powered insurance engagement platform built with React, Express, and Supabase
 - **Frontend**: React + TypeScript + Vite + Tailwind CSS + shadcn/ui
 - **Backend**: Express.js + TypeScript
 - **Database**: Supabase (PostgreSQL)
-- **AI**: OpenAI GPT-4
+- **AI**: DeepSeek
 - **Deployment**: Vercel
 
 ## Environment Variables

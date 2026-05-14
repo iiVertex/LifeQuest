@@ -12,3 +12,4 @@ vite.config.ts.*
 *.backup
 tasks.txt
 .local
+.env.production
